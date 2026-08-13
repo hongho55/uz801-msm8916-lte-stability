@@ -63,6 +63,21 @@ Error in file lte_ml1_common.c, line 324
 
 The raw core is **not published** because modem memory can contain subscriber identifiers and other private data.
 
+The dump is a synthetic remoteproc `ET_CORE` container: it has raw `PT_LOAD` memory ranges but no useful section table, symbol table, DWARF, or generic register/thread notes. It therefore confirms the MPSS build and fatal source line, but does **not** identify the running QuRT task, program counter, blocked mutex/semaphore, or deadlock owner. `Assert 0` may be the consequence of a watchdog rather than proof that the asserting task itself was deadlocked. Exact task-level analysis would require matching proprietary MPSS symbols/maps plus Qualcomm/Hexagon-aware crash tooling or additional QuRT task/register metadata.
+
+Safe offline inspection should disable network-assisted symbol fetching and work only on an encrypted local copy:
+
+```sh
+umask 077
+export DEBUGINFOD_URLS=
+file mpss-core.elf
+readelf -hW -lW -nW mpss-core.elf
+strings -a -n 4 -t x mpss-core.elf |
+  grep -Ei 'MPSS|lte_ml1|ML1|watchdog|dead|mutex|semaphore|sched|QURT|assert|error'
+```
+
+Nearby strings are only candidates: they may be firmware `.rodata` and do not prove association with the active task. Do not upload the dump to public analyzers, debuginfod, GitHub, issue trackers, or paste sites.
+
 ### Direct raw-IP QMI path
 
 ModemManager was stopped and the connection was established with:
@@ -120,7 +135,7 @@ This confirms that restarting MPSS resets the failing approximately 900-second e
 ### Not proven
 
 - This is **not proven to be a KT network fault**.
-- The exact 900-second timer (LTE RRC/NAS/PDN, RF/ML1 watchdog, power management, or vendor logic) is unknown.
+- The exact 900-second mechanism remains unknown. No public source found in this investigation directly ties this MPSS assert to a named LTE RRC/NAS timer; assigning it to T3412, a PDN lease, RF calibration, or another 3GPP timer would be speculation.
 - ModemManager is not proven to be the root cause. It changes the observed failure from a silent data stall to an MPSS assert, but both paths fail near the same time range.
 - No safe, validated replacement MPSS firmware has been identified.
 - A cross-device modem firmware or generic NV/QCN should not be flashed based on this report.
