@@ -78,6 +78,18 @@ In this mode no new remoteproc crash was recorded during the 16-minute run, but 
 
 Adding `autoconnect=yes` was not usable on this firmware: the network start did not yield IP settings and netifd repeatedly retried. Do not assume autoconnect support merely because libqmi exposes the option.
 
+### Pre-emptive bearer reconnect A/B
+
+A controlled test reconnected only the ModemManager bearer at MPSS age 702 seconds. Real LTE traffic and WireGuard recovered immediately, but the modem still raised the same fatal assert at MPSS age 902 seconds:
+
+```text
+phase=after rproc_age=886 crash=1 internet=yes
+phase=after rproc_age=902 crash=2 internet=no
+lte_ml1_common_dump.c:213:Assert 0 failed: No response from ML1. deadlock tmr
+```
+
+This rules out periodic bearer/PDP reconnection as a workaround on the tested unit. The approximately 900-second deadline follows MPSS uptime, not bearer lifetime.
+
 ## What is proven vs. not proven
 
 ### Proven on the tested unit
@@ -89,6 +101,8 @@ Adding `autoconnect=yes` was not usable on this firmware: the network start did 
 - Restarting only the modem remote processor plus ModemManager can restore LTE without rebooting OpenWrt or dropping Wi-Fi.
 - On some recoveries, the kernel's BAM-DMUX state remains wedged; a full AP/OpenWrt reboot is then needed to clear `Channel already open` state.
 - The modem may restore QMI profile 3 APN to `ctlte` after cold boot. On the tested KT SIM this caused `limited-regional`, registration timeout, or detach until profile 3 was repaired.
+- The packaged `rmtfs` runs as `rmtfs -P -r -s`. In upstream rmtfs, `-r` means the NV partitions are copied to RAM shadow storage and modem writes are not persisted. This explains why a QMI profile change can disappear after MPSS or device restart; it does not by itself prove the ML1 crash cause.
+- The live reserved-memory layout matched the upstream MSM8916 UFI layout: RMTFS `0x86700000/0xe0000`, RFSA `0x867e0000/0x20000`, and MPSS at `0x86800000` with a device-specific `0x5500000` size.
 
 ### Not proven
 
