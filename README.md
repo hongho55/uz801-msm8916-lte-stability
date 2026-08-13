@@ -165,6 +165,31 @@ Example cron entry:
 
 The script internally rate-limits healthy probes to reduce data use.
 
+## RMTFS and Device Tree cross-check
+
+The tested OpenWrt image was compared against the MSM8916 UFI Device Tree and upstream `linux-msm/rmtfs` implementation.
+
+| Item | Live value | Upstream UFI value | Result |
+|---|---:|---:|---|
+| RMTFS base/size | `0x86700000 / 0xe0000` | `0x86700000 / 0xe0000` | match |
+| RMTFS client ID | `1` | `1` | match |
+| RFSA base/size | `0x867e0000 / 0x20000` | `0x867e0000 / 0x20000` | match |
+| MPSS base/size | `0x86800000 / 0x5500000` | UFI override `0x86800000 / 0x5500000` | match |
+| rmtfs arguments | `-P -r -s` | upstream service `-r -P -s` | equivalent |
+| BAM-DMUX | enabled | enabled by `msm8916-ufi.dtsi` | match |
+
+Relevant source paths:
+
+- `arch/arm64/boot/dts/qcom/msm8916.dtsi`
+- `arch/arm64/boot/dts/qcom/msm8916-ufi.dtsi`
+- `drivers/remoteproc/qcom_q6v5_mss.c`
+- `drivers/net/wwan/qcom_bam_dmux.c`
+- `linux-msm/rmtfs`: `rmtfs.c`, `storage.c`, `rmtfs.service.in`
+
+In rmtfs, `-P` selects raw partitions, while `-r` enables read-only backing storage. The partitions are copied into RAM shadow buffers; subsequent modem writes update the shadow, not `modemst1/2` on eMMC. This is why a QMI profile modification can appear successful and then disappear after MPSS restart. Removing `-r` would make modem NV writes persistent and was **not** done during this investigation.
+
+No reserved-memory, RMTFS client-ID, partition-label, or firmware-file mismatch was found that explains the periodic ML1 assert.
+
 ## Capturing a remoteproc core safely
 
 The tested kernel exposed:
