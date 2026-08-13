@@ -90,6 +90,19 @@ lte_ml1_common_dump.c:213:Assert 0 failed: No response from ML1. deadlock tmr
 
 This rules out periodic bearer/PDP reconnection as a workaround on the tested unit. The approximately 900-second deadline follows MPSS uptime, not bearer lifetime.
 
+### Pre-emptive MPSS restart A/B
+
+A controlled restart sequence stopped the tunnel and modem interface, stopped ModemManager, restarted only `remoteproc0`, then restored ModemManager, LTE, and WireGuard. It was run twice before the fatal deadline:
+
+| Cycle | Planned restart age | Crash counter before/after | LTE result |
+|---|---:|---:|---|
+| 1 | 651 s | `2 → 2` | recovered on probe 4 |
+| 2 | 675 s | `2 → 2` | recovered on probe 4 |
+
+The final 90-second observation retained real LTE traffic and WireGuard, producing `PREEMPTIVE_MPSS_TWO_CYCLES_PASSED`.
+
+This confirms that restarting MPSS resets the failing approximately 900-second epoch. It is technically usable as a preventive workaround, but it was **not installed as a recurring job**: the orderly planned restart caused roughly 30 seconds of interruption, whereas the latest natural crash plus watchdog recovery took about 8 seconds. For this vehicle-hotspot use case, planned downtime every 11 minutes was worse than recovering the failure on demand.
+
 ## What is proven vs. not proven
 
 ### Proven on the tested unit
