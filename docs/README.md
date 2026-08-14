@@ -4,6 +4,7 @@ This directory contains the sanitized, public record of the UZ801/MSM8916 LTE st
 
 - [`uz801-ml1-failure-investigation-2026-08-14.md`](uz801-ml1-failure-investigation-2026-08-14.md) — reproducible failure timeline, experiments, forensic findings, failed approaches, and the current patch gate.
 - [`uz801-msm8916-firmware-candidate-audit-2026-08-14.md`](uz801-msm8916-firmware-candidate-audit-2026-08-14.md) — OpenStick implementation review and public modem-firmware candidate audit.
+- [`uz801-follow-up-research-closure-2026-08-14.md`](uz801-follow-up-research-closure-2026-08-14.md) — sanitized synthesis of the repeated-epoch evidence, completed/blocked experiments, offline forensic follow-up, and closure decision.
 
 ## Privacy boundary
 
