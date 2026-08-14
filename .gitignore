@@ -18,6 +18,11 @@ persist*
 *.dlf
 *.log
 
+# Local forensic workspaces and capture artifacts; publish only curated docs.
+research/
+research-raw/
+*.part
+
 # Credentials and local configuration
 .env
 *.key
@@ -25,6 +30,13 @@ persist*
 id_*
 config.local
 secrets*
+
+# Device-side capture runners and generated local tooling
+.hermes-device-precheck.sh
+scripts/controlled-natural-core-capture.sh
+scripts/qmi-indication-rereg-ab.sh
+tools/
+scripts/__pycache__/
 
 # Editor/OS
 .DS_Store

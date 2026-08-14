@@ -4,6 +4,14 @@ Reproducible diagnostics and recovery notes for periodic Qualcomm MPSS/ML1 failu
 
 > **Status:** mitigation verified; root cause not proven. Do not treat this repository as a firmware fix.
 
+## Public investigation record
+
+- [Forensic investigation and failed approaches](docs/uz801-ml1-failure-investigation-2026-08-14.md)
+- [OpenStick and modem-firmware candidate audit](docs/uz801-msm8916-firmware-candidate-audit-2026-08-14.md)
+- [Documentation index and privacy boundary](docs/README.md)
+
+The `research/` directory is intentionally local-only and ignored. Raw remoteproc cores, modem/NV/QCN/EFS data, device identifiers, credentials, and unreviewed capture logs are not part of the public repository.
+
 ## Tested environment
 
 - Board: `yiming,uz801-v3` / Qualcomm MSM8916
