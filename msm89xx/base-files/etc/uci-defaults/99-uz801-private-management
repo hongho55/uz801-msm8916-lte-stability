@@ -1,0 +1,14 @@
+#!/bin/sh
+# Private UZ801 settings, after 99-msm89xx-firstboot.
+[ "$(cat /tmp/sysinfo/board_name 2>/dev/null)" = 'yiming,uz801-v3' ] || exit 0
+uci -q batch <<'EOF'
+set network.modem.auto='0'
+set network.@device[0].bridge_empty='1'
+set usbgadget.ecm.enabled='1'
+set usbgadget.ncm.enabled='0'
+set usbgadget.acm.enabled='1'
+set usbgadget.acm.shell='1'
+commit network
+commit usbgadget
+EOF
+exit 0

@@ -1,0 +1,5 @@
+::sysinit:/etc/init.d/rcS S boot
+::shutdown:/etc/init.d/rcS K shutdown
+::askconsole:/usr/libexec/login.sh
+# Private UZ801 image: start only after rcS has created the USB tty.
+ttyGS0::respawnlate:/sbin/askfirst /usr/libexec/login.sh
