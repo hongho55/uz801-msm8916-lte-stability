@@ -4,7 +4,7 @@
 
 ## Credit and investigation continuity
 
-Thank you to **@akbar-npj**, who opened [our issue #1](https://github.com/hongho55/uz801-msm8916-lte-stability/issues/1) and pointed us to [msm8916-openwrt issue #5](https://github.com/akbar-npj/msm8916-openwrt/issues/5). The HiMI_OK idea, DIAG utility and guard originate in that upstream project; they are **not discoveries made by this repository**. Our contribution here is the exact-device integration, management/build corrections, guarded installation and a limited independent observation on this UZ801.
+Thank you to **@akbar-npj**, who opened [our issue #1](https://github.com/hongho55/uz801-msm8916-lte-stability/issues/1) and pointed us to [msm8916-openwrt issue #5](https://github.com/akbar-npj/msm8916-openwrt/issues/5). The HiMI_OK/NV2500 root-cause analysis, DIAG utility and guard originate in that upstream project (analysis documented in its `Docs/Modem Stability`), and **@miraclebg** independently reproduced it earlier on a UZ801 v3 reporting `HIMI_U01_MODEM_V1.0` ([comment](https://github.com/akbar-npj/msm8916-openwrt/issues/5#issuecomment-6084491330)). They are **not discoveries made by this repository**. This repository's unit reports **V2.0**, so it adds a separate single-device observation, not a replacement for that evidence. Our contribution here is the exact-device integration, management/build corrections, guarded installation and a limited independent observation on this UZ801.
 
 The August investigation remains a dated record, not a statement of the current evidence. In particular, this new experiment is different from reconnecting a bearer or periodically restarting MPSS. No preventive restart was used during this trial.
 

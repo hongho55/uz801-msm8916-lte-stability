@@ -9,7 +9,7 @@ Reproducible diagnostics and recovery notes for periodic Qualcomm MPSS/ML1 failu
 - [Final report, risks, build identity and sanitized evidence](docs/uz801-himi2500-experiment-2026-11-10.md)
 - [Experimental firmware release](https://github.com/hongho55/uz801-msm8916-lte-stability/releases/tag/uz801-himi2500-experiment-20261110)
 - [Exact firmware/BSP source branch](https://github.com/hongho55/uz801-msm8916-lte-stability/tree/firmware/uz801-himi2500-experiment)
-- Thanks to [@akbar-npj and the linked upstream investigation](https://github.com/hongho55/uz801-msm8916-lte-stability/issues/1). The HiMI_OK method and guard are upstream work, not our invention.
+- Thanks to [@akbar-npj](https://github.com/hongho55/uz801-msm8916-lte-stability/issues/1) for the upstream HiMI_OK/NV2500 root-cause analysis and guard, linked to this project, and to [@miraclebg](https://github.com/akbar-npj/msm8916-openwrt/issues/5#issuecomment-6084491330) for the earlier independent UZ801 v3 reproduction (HIMI_U01_MODEM_V1.0). Those are upstream work, not our invention. Our run is a separate observation on HIMI_U01_MODEM_V2.0.
 
 **Warning:** this image can automatically write NV item 2500 on the exact opted-in board after boot. Standalone boot/system images are not generic sysupgrade or whole-device flashing inputs. Read the report before downloading or installing. The August findings below remain historical evidence, not the latest experiment's environment. Upstream firmware/patches retain their own licenses; this documentation repository's MIT license does not relicense them.
 
