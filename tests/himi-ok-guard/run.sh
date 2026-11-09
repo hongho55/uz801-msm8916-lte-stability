@@ -39,7 +39,8 @@ echo "$1" >> "$T/nv.calls"
 case "$1" in
 read)
 	# a failed read still returns an (all-zero) buffer - the status is the only signal
-	if [ "${NV_MODE:-ok}" = fail ]; then echo "status=0x0007"; : > "$T/item"; else echo "status=0x0000"; fi
+	if [ "${NV_MODE:-ok}" = fail ]; then status=0x0007; : > "$T/item"; else status=0x0000; fi
+	printf 'nvread 2500 (0x9c4): resp=137 bytes  status=%s\n' "$status"
 	# 128-byte payload in 8 lines of 16 bytes, "OFFS  xx .. xx |ascii|"
 	python3 - "$T/item" <<'PY'
 import sys
@@ -191,8 +192,8 @@ echo "passed $PASS, failed $FAIL"
 if [ "${1:-}" = --self-check ]; then
     echo; echo "self-check: each mutant removes one property; its check must go red"
     G=usr/sbin/himi-ok-guard
-    mutant no-zero-gate       'if ! payload_all_zero "$out"; then' 'if false; then' $G
-    mutant writes-on-failed-read 'if ! printf '"'"'%s'"'"' "$out" | grep -q "status=0x0000"; then' 'if false; then' $G
+    mutant no-zero-gate       'if ! payload_all_zero "$hex"; then' 'if false; then' $G
+    mutant writes-on-failed-read 'if ($0 !~ /^nvread 2500 [(]0x9c4[)]: resp=137 bytes[ 	]+status=0x0000$/) reject()' 'if (0) reject()' $G
     mutant no-lock            'flock -x 200' ':' $G
     mutant no-unlock          'flock -u 200' ':' $G
     mutant first-byte-only    "case \"\$hex\" in
