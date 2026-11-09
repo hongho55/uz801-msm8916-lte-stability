@@ -42,26 +42,29 @@ A source mirror/cache can be supplied with `--upstream-url`; the resolved upstre
 
 ## What stops an upgrade
 
-- Existing destination, modified tracked files, filesystem warnings or a wrong repository root.
+- Existing destination, modified tracked files, filesystem warnings or a wrong repository root. Untracked **and ignored** files in the audited BSP/package/overlay/patch/config/script/build-environment input directories are rejected too; unrelated research Docs and generated OpenWrt caches are not blanket-deleted.
 - Tampered recipe patch checksum, a patch that no longer applies, or changed critical files/DIAG utility. There is no force/fuzzy-patch/old-version fallback.
 - Regression failure, build failure, missing images, or source changes during the build.
-- A built system image whose extracted guard, firstboot settings or inittab do not match the reviewed source. A stale image is not accepted merely because its filename exists.
+- Prior boot/system/manifest outputs are quarantined under `previous-build-local-only/` before make runs, so all three must be recreated. The rebuilt system's extracted guard, DIAG wrapper, firstboot and inittab must match source. This is targeted member/provenance validation, **not** a byte-for-byte audit of the complete filesystem or a proof of reproducible binaries.
 - A concurrent recipe build; the shared builder is host-locked. Do not also launch unrelated manual builds into the same cache while this tool runs.
 
 On an incompatible upstream version, review the upstream changes, port the smallest required patch, rerun regressions, update the recipe checksums and try again in a fresh checkout. **Do not remove checks to make an upgrade pass.** Critical file hashes intentionally require explicit review when the DIAG format or guard changes.
 
 ## NV2500 hardening included
 
-The guarded read must succeed as a process and match the bundled utility's complete output contract: item2500/0x9c4, response length137, status0x0000, eight ordered rows0000..0070, sixteen valid hex bytes each, total128bytes. Wrong/short/extra/ambiguous output is read-only. Existing tokens and foreign payloads are not rewritten. No DIAG cycle is run without a successful lock; a failed write process is not logged as verified success.
+The guarded read must succeed as a process and match the bundled utility's complete output contract: item2500/0x9c4, response length137, status0x0000, eight ordered rows0000..0070, sixteen valid hex bytes each, total128bytes, and exact 16-character ASCII columns consistent with those bytes. Wrong/short/extra/ambiguous output is read-only. Existing tokens and foreign payloads are not rewritten. No DIAG cycle is run without a successful lock; a failed write process is not logged as verified success.
 
-The synthetic response suite covers 36 cases. The prior parser was observed attempting a write on a one-row all-zero fixture; the hardened parser rejects that case. These are **fixture tests**, not real-device NV experiments. Both ordinary Linux tools and the candidate rootfs's BusyBox ash/awk were exercised. The standalone guard harness requires Linux `flock`; use the builder rather than assuming an unmodified macOS host has it. Its redirected device fixture does not test the real character-device gate or long-running retry timing. A failed lock skips that DIAG cycle and is retried later; fail-closed does not mean the daemon exits. The parser is deliberately coupled to the bundled utility; a changed format must be reviewed rather than guessed.
+The synthetic response suite covers 39 cases. The prior parser was observed attempting a write on a one-row all-zero fixture; the hardened parser rejects that case. These are **fixture tests**, not real-device NV experiments. Both ordinary Linux tools and the candidate rootfs's BusyBox ash/awk were exercised. The standalone guard harness requires Linux `flock`; use the builder rather than assuming an unmodified macOS host has it. Its redirected device fixture does not test the real character-device gate or long-running retry timing. A failed lock skips that DIAG cycle and is retried later; fail-closed does not mean the daemon exits. The parser is deliberately coupled to the bundled utility; a changed format must be reviewed rather than guessed.
 
 ## Candidate output
+
+The normal `diag_nv` wrapper now acquires the same real flock and reuses the guard's inherited descriptor, keeping the read/check/write transaction exclusive without deadlocking or unlocking its parent. Five Linux lock tests cover standalone use, competing callers, inherited-descriptor lifetime, failed locking and help-only behavior; the tests were also run with candidate BusyBox ash. Direct invocation of the underlying binary or another raw DIAG client can bypass this convention and **must** honor the same lock; this is not a modem-side atomic compare-and-swap.
 
 - Original build outputs: standalone boot/system images and package manifest.
 - `bsp-source.tar.gz`: tracked source at the built commit, excluding upstream research `Docs/`; no private device capture.
 - `COPYING-BSP`, the final `openwrt.config`, `build-info.json`, `SHA256SUMS`.
 - `build.log`: **local diagnostic only**, intentionally excluded from the checksum/distribution allow-list because raw build paths/logs have not been privacy-reviewed.
+- `previous-build-local-only/`: preserved old generated outputs, never part of the release allow-list.
 
 `build-info.json` always starts as `channel=candidate`, `hardware_validated=false`. It records the exact BSP/OpenWrt/feed commits, recipe/patch/runner identity, builder image ID and image-member checks. OpenWrt/package-feed sources are not bundled in the BSP archive; obtain the matching source repositories and review all component licenses before binary distribution. The MIT documentation license does not relicense GPL firmware/patches; [GPL-2.0 text](../../docs/patches/COPYING-GPL-2.0) is preserved.
 

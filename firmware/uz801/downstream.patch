@@ -107,11 +107,41 @@ index f740924..315ed1c 100644
  	# Match bn against each space-separated glob.  Disable pathname expansion
  	# in a subshell, otherwise the unquoted $list is glob-expanded against the
  	# CWD and a file like "hmu05_fsg_extracted" would replace the pattern.
+diff --git a/msm89xx/base-files/usr/sbin/diag_nv b/msm89xx/base-files/usr/sbin/diag_nv
+index 7896588..36eb981 100755
+--- a/msm89xx/base-files/usr/sbin/diag_nv
++++ b/msm89xx/base-files/usr/sbin/diag_nv
+@@ -30,8 +30,9 @@ Options:
+   -h, --help   Show this help and exit
+ 
+ Notes:
+-  * /dev/rpmsg0 is exclusive-open.  Serialize DIAG users on
+-    /var/lock/himi-ok-diag.lock (himi-ok-guard already does).
++  * This wrapper serializes on /var/lock/himi-ok-diag.lock and preserves
++    the guard's inherited lock across its read/check/write cycle.
++    Direct binary/raw DIAG callers must honor the same lock.
+   * Reply byte 0x14 = "invalid parameter"; status 0x42 = NV locked by the
+     service programming state.
+ 
+@@ -45,4 +46,13 @@ USAGE
+ 		;;
+ esac
+ 
++# Reuse the guard's open-file description rather than opening a second one
++# and deadlocking against our parent. Never trust an environment-only bypass.
++DIAG_LOCK=/var/lock/himi-ok-diag.lock
++if ! [ /proc/self/fd/200 -ef "$DIAG_LOCK" ]; then
++	exec 200>"$DIAG_LOCK"
++fi
++flock -x 200 || exit 1
++# No explicit unlock: exec/exit closes our reference; a parent guard keeps its
++# inherited reference locked until the whole guarded transaction completes.
+ exec /usr/libexec/diag_nv.bin "$@"
 diff --git a/msm89xx/base-files/usr/sbin/himi-ok-guard b/msm89xx/base-files/usr/sbin/himi-ok-guard
-index d4b7c9e..76b6377 100755
+index d4b7c9e..c9385cb 100755
 --- a/msm89xx/base-files/usr/sbin/himi-ok-guard
 +++ b/msm89xx/base-files/usr/sbin/himi-ok-guard
-@@ -82,14 +82,37 @@ log() { logger -t himi-ok-guard "$*"; }
+@@ -82,14 +82,46 @@ log() { logger -t himi-ok-guard "$*"; }
  case "$INTERVAL" in ''|*[!0-9]*) INTERVAL=20 ;; esac
  [ "$INTERVAL" -ge 5 ] || INTERVAL=5
  
@@ -130,13 +160,22 @@ index d4b7c9e..76b6377 100755
 +		{
 +			if (NR > 9 || $0 !~ /[ 	]+\|.*\|$/) reject()
 +			line = $0
++			ascii = $0
++			sub(/^[^|]*[|]/, "", ascii)
++			sub(/[|]$/, "", ascii)
++			if (length(ascii) != 16) reject()
++			expected = ""
 +			sub(/[ 	]+\|.*$/, "", line)
 +			n = split(line, a, /[ 	]+/)
 +			if (n != 17 || ("@" a[1]) != ("@" sprintf("%04x", (NR - 2) * 16))) reject()
 +			for (i = 2; i <= 17; i++) {
 +				if (a[i] !~ /^[0-9a-fA-F][0-9a-fA-F]$/) reject()
 +				hex = hex tolower(a[i])
++				digits = "0123456789abcdef"
++				b = (index(digits, tolower(substr(a[i], 1, 1))) - 1) * 16 + index(digits, tolower(substr(a[i], 2, 1))) - 1
++				expected = expected ((b >= 32 && b < 127) ? sprintf("%c", b) : ".")
 +			}
++			if (ascii != expected) reject()
 +		}
 +		END {
 +			if (bad || NR != 9 || length(hex) != 256) exit 1
@@ -156,7 +195,7 @@ index d4b7c9e..76b6377 100755
  	case "$hex" in
  		*[!0]*) return 1 ;;
  	esac
-@@ -99,15 +122,13 @@ payload_all_zero() {
+@@ -99,15 +131,13 @@ payload_all_zero() {
  # One poll cycle.  Runs under the DIAG lock (see the loop).
  warned_nonzero=
  do_cycle() {
@@ -179,7 +218,7 @@ index d4b7c9e..76b6377 100755
  		# Non-zero, non-HiMI_OK data: never clobber it.  Warn once.
  		[ -n "$warned_nonzero" ] || {
  			log "item $ITEM holds non-zero data (not HiMI_OK); leaving it untouched"
-@@ -115,8 +136,8 @@ do_cycle() {
+@@ -115,8 +145,8 @@ do_cycle() {
  		}
  		return 0
  	fi
@@ -190,7 +229,7 @@ index d4b7c9e..76b6377 100755
  		log "item $ITEM was cleared; wrote HiMI_OK"
  		warned_nonzero=
  	else
-@@ -130,10 +151,9 @@ log "start (item=$ITEM interval=${INTERVAL}s)"
+@@ -130,10 +160,9 @@ log "start (item=$ITEM interval=${INTERVAL}s)"
  exec 200>"$DIAG_LOCK"
  
  while :; do
@@ -264,12 +303,100 @@ index c6a4838..fe41132 100755
      mutant no-lock            'flock -x 200' ':' $G
      mutant no-unlock          'flock -u 200' ':' $G
      mutant first-byte-only    "case \"\$hex\" in
+diff --git a/tests/himi-ok-guard/test-diag-lock.py b/tests/himi-ok-guard/test-diag-lock.py
+new file mode 100644
+index 0000000..ec5d907
+--- /dev/null
++++ b/tests/himi-ok-guard/test-diag-lock.py
+@@ -0,0 +1,82 @@
++#!/usr/bin/env python3
++# SPDX-License-Identifier: GPL-2.0-only
++"""Real Linux flock/descriptor tests; wrapper binary is a fixture, never DIAG."""
++import fcntl
++import os
++from pathlib import Path
++import shlex
++
++import subprocess
++import tempfile
++
++source = Path(__file__).resolve().parents[2] / 'msm89xx/base-files/usr/sbin/diag_nv'
++shell = shlex.split(os.environ.get('GUARD_SH', 'bash'))
++with tempfile.TemporaryDirectory(prefix='diag-lock-', dir=os.environ.get('TMPDIR')) as td:
++    root = Path(td)
++    lock = root / 'lock'
++    calls = root / 'calls'
++    binary = root / 'binary'
++    binary.write_text('''#!/usr/bin/env python3
++import fcntl, os, sys
++from pathlib import Path
++with open(os.environ['TEST_LOCK'], 'a') as f:
++    try:
++        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
++    except BlockingIOError:
++        pass
++    else:
++        sys.exit('binary ran without a held lock')
++with Path(os.environ['TEST_CALLS']).open('a') as out:
++    out.write('binary\\n')
++''')
++    binary.chmod(0o755)
++    wrapper = root / 'wrapper'
++    code = source.read_text().replace('DIAG_LOCK=/var/lock/himi-ok-diag.lock', 'DIAG_LOCK=' + shlex.quote(str(lock)))
++    code = code.replace('exec /usr/libexec/diag_nv.bin', 'exec ' + shlex.quote(str(binary)))
++    wrapper.write_text(code)
++    env = dict(os.environ, TEST_LOCK=str(lock), TEST_CALLS=str(calls))
++
++    def run_wrapper():
++        return subprocess.run(shell + [str(wrapper), 'read', '2500'], env=env, capture_output=True, text=True, timeout=4)
++
++    r = run_wrapper()
++    assert r.returncode == 0, (r.stdout, r.stderr)
++    print('PASS: standalone wrapper holds real flock through binary execution')
++    calls.unlink()
++    # A separate wrapper must wait for another process's transaction.
++    with lock.open('a') as held:
++        fcntl.flock(held, fcntl.LOCK_EX)
++        proc = subprocess.Popen(shell + [str(wrapper), 'read', '2500'], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
++        try:
++            proc.wait(timeout=0.2)
++        except subprocess.TimeoutExpired:
++            pass
++        else:
++            raise AssertionError('wrapper did not wait for transaction lock')
++        assert not calls.exists(), 'binary ran inside another locked transaction'
++        fcntl.flock(held, fcntl.LOCK_UN)
++        out, err = proc.communicate(timeout=4)
++        assert proc.returncode == 0, (out, err)
++    print('PASS: concurrent wrapper cannot interleave a held transaction')
++    calls.unlink()
++    # Inheriting fd200 must neither deadlock nor release the parent's lock.
++    script = ('exec 200>' + shlex.quote(str(lock)) + '; flock -x 200; '
++              + shlex.join(shell + [str(wrapper), 'read', '2500']) + ' || exit 1; '
++              + shlex.quote(str(binary)) + ' || exit 1; flock -u 200')
++    r = subprocess.run(shell + ['-c', script], env=env, capture_output=True, text=True, timeout=4)
++    assert r.returncode == 0, (r.stdout, r.stderr)
++    assert calls.read_text().splitlines() == ['binary', 'binary']
++    print('PASS: inherited lock is reused without deadlock or parent unlock')
++    calls.unlink()
++    failing = root / 'bin'
++    failing.mkdir()
++    stub = failing / 'flock'
++    stub.write_text('#!/bin/sh\nexit 1\n')
++    stub.chmod(0o755)
++    r = subprocess.run(shell + [str(wrapper), 'read', '2500'], env=dict(env, PATH=str(failing) + ':' + env['PATH']), capture_output=True, timeout=4)
++    assert r.returncode != 0 and not calls.exists()
++    print('PASS: failed lock never executes binary')
++    r = subprocess.run(shell + [str(wrapper), '--help'], env=env, capture_output=True, text=True, timeout=4)
++    assert r.returncode == 0 and 'Usage:' in r.stdout and not calls.exists()
++    print('PASS: help does not access binary')
++print('5 DIAG wrapper lock cases passed; no modem access')
 diff --git a/tests/himi-ok-guard/test-responses.py b/tests/himi-ok-guard/test-responses.py
 new file mode 100644
-index 0000000..e2bb0be
+index 0000000..0f01574
 --- /dev/null
 +++ b/tests/himi-ok-guard/test-responses.py
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,121 @@
 +#!/usr/bin/env python3
 +# SPDX-License-Identifier: GPL-2.0-only
 +"""Run the real guard against synthetic DIAG replies; no device/root required."""
@@ -290,7 +417,8 @@ index 0000000..e2bb0be
 +    lines = [header]
 +    for i in range(0, len(data), 16):
 +        chunk = data[i:i + 16]
-+        lines.append(f'{i:04x}  ' + ' '.join(f'{b:02x}' for b in chunk) + '  |' + '.' * len(chunk) + '|')
++        ascii_text = ''.join(chr(b) if 32 <= b < 127 else '.' for b in chunk)
++        lines.append(f'{i:04x}  ' + ' '.join(f'{b:02x}' for b in chunk) + '  |' + ascii_text + '|')
 +    return '\n'.join(lines) + '\n'
 +
 +
@@ -328,6 +456,9 @@ index 0000000..e2bb0be
 +    ('trailing diagnostic line', zero + 'transport warning\n', 0, False),
 +    ('leading diagnostic line', 'transport warning\n' + zero, 0, False),
 +    ('missing ASCII delimiter', zero.replace('  |................|', '', 1), 0, False),
++    ('short ASCII column', zero.replace('|................|', '|X|', 1), 0, False),
++    ('contradictory ASCII column', zero.replace('|................|', '|X...............|', 1), 0, False),
++    ('long ASCII column', zero.replace('|................|', '|.................|', 1), 0, False),
 +    ('ASCII zeroes hide foreign data', reply(bytes(127) + b'X').replace('|................|', '|0000000000000000|'), 0, False),
 +    ('nonzero exit with complete zeros', zero, 1, False),
 +    ('failed exit with existing token', reply(TOKEN), 1, False),

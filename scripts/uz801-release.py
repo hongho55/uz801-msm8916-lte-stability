@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RECIPE = ROOT / 'firmware/uz801/recipe.json'
 CONTAINER = 'openwrt-builder'
 BOARD_PREFIX = 'msm8916-openwrt-msm89xx-msm8916-yiming-uz801v3'
+BUILD_INPUTS = ['msm89xx', 'packages', 'diffconfigs', 'scripts', 'devenv',
+                'openwrt-overlay', 'openwrt-patches']
 
 
 def run(args, **kwargs):
@@ -57,6 +59,11 @@ def verify(source, cfg):
         raise RuntimeError('Cannot audit source status cleanly (filesystem/symlink warning)')
     if status.stdout.strip():
         raise RuntimeError('Tracked source changes present; commit/review them first')
+    # Include ignored files: cp -a consumes those too. Exclude only unrelated
+    # research Docs and the generated openwrt tree by auditing actual inputs.
+    extra = text(['git', '-C', source, 'ls-files', '--others', '--', *BUILD_INPUTS])
+    if extra:
+        raise RuntimeError('Untracked build input (including ignored files): ' + extra.splitlines()[0])
     for name, expected in cfg['required_files'].items():
         path = source / name
         if path.is_symlink() or not path.is_file() or sha(path) != expected:
@@ -140,13 +147,25 @@ def cat_image(source, image, member):
         '/repo/openwrt/staging_dir/host/bin/unsquashfs4', '-cat', '/repo/' + relative, member])
 
 
+def quarantine_outputs(source, output):
+    target = source / 'openwrt/bin/targets/msm89xx/msm8916'
+    for suffix in ['-squashfs-boot.img', '-squashfs-system.img', '.manifest']:
+        origin = target / (BOARD_PREFIX + suffix)
+        if origin.is_symlink():
+            raise RuntimeError('Refusing symlink build artifact: ' + origin.name)
+        if origin.exists():
+            prior = output / 'previous-build-local-only'
+            prior.mkdir(exist_ok=True)
+            shutil.move(str(origin), prior / origin.name)
+
+
 def collect(source, output, cfg, commit):
     if verify(source, cfg) != commit:
         raise RuntimeError('Source commit changed during build')
     target = source / 'openwrt/bin/targets/msm89xx/msm8916'
     system = target / (BOARD_PREFIX + '-squashfs-system.img')
     # Real extracted bytes, not filenames or a successful make exit, identify this image.
-    for name in ['usr/sbin/himi-ok-guard', 'etc/uci-defaults/99-uz801-private-management', 'etc/inittab']:
+    for name in ['usr/sbin/himi-ok-guard', 'usr/sbin/diag_nv', 'etc/uci-defaults/99-uz801-private-management', 'etc/inittab']:
         expected = (source / 'msm89xx/base-files' / name).read_bytes()
         if cat_image(source, system, name) != expected:
             raise RuntimeError('Stale/wrong system image member: ' + name)
@@ -175,8 +194,9 @@ def collect(source, output, cfg, commit):
         'pipeline_runner_sha256': RUNNER_SHA256,
         'builder_image_id': text(['docker', 'inspect', CONTAINER, '--format', '{{.Image}}']),
         'openwrt_commit': owrt, 'feeds': feeds,
-        'image_member_verification': 'matched built guard, firstboot and inittab bytes',
-        'checks': ['synthetic DIAG replies', 'guard regression', 'board profile self-check', 'management regression'],
+        'image_member_verification': 'matched built guard, DIAG wrapper, firstboot and inittab bytes',
+        'artifact_regeneration': 'prior board outputs quarantined before build; all three outputs recreated',
+        'checks': ['synthetic DIAG replies', 'DIAG wrapper real-flock regression', 'guard regression', 'board profile self-check', 'management regression'],
         'warnings': ['NV2500 may be written on first boot', 'development USB shell/default account state',
                      'not sysupgrade/whole-device inputs', 'device qualification required; not stable']}
     (output / 'build-info.json').write_text(json.dumps(metadata, indent=2) + '\n')
@@ -201,9 +221,11 @@ def build(args, cfg):
             env = builder(source)
             with (output / 'build.log').open('w') as log:
                 tests = ('set -e; cd /repo; python3 tests/himi-ok-guard/test-responses.py; '
+                         'python3 tests/himi-ok-guard/test-diag-lock.py; '
                          'bash tests/himi-ok-guard/run.sh; bash tests/board-profile/run.sh --self-check; '
                          'python3 tests/private-usb-management/run.py')
                 run(['docker', 'exec', CONTAINER, 'bash', '-lc', tests], stdout=log, stderr=subprocess.STDOUT)
+                quarantine_outputs(source, output)
                 run(['bash', source / 'build.sh', 'build', 'uz801'], cwd=source, env=env,
                     stdout=log, stderr=subprocess.STDOUT)
             collect(source, output, cfg, commit)

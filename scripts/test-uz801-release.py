@@ -83,6 +83,25 @@ class RecipeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'Tracked source changes'):
             release.verify(self.dest, self.cfg)
 
+    def test_untracked_overlay_rejected(self):
+        self.prepare()
+        overlay = self.dest / 'openwrt-overlay'
+        overlay.mkdir()
+        (overlay / 'unreviewed').write_text('not in source archive')
+        with self.assertRaisesRegex(RuntimeError, 'Untracked build input'):
+            release.verify(self.dest, self.cfg)
+
+    def test_ignored_overlay_rejected(self):
+        self.prepare()
+        (self.dest / '.gitignore').write_text('openwrt-overlay/ignored\n')
+        git(self.dest, 'add', '.gitignore')
+        git(self.dest, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@localhost', 'commit', '-m', 'ignore fixture')
+        overlay = self.dest / 'openwrt-overlay'
+        overlay.mkdir()
+        (overlay / 'ignored').write_text('ignored but still a build input')
+        with self.assertRaisesRegex(RuntimeError, 'Untracked build input'):
+            release.verify(self.dest, self.cfg)
+
     def test_clean_but_unreviewed_contract_rejected(self):
         self.prepare()
         (self.dest / 'config.txt').write_text('unsafe\n')
@@ -168,6 +187,27 @@ class RecipeTests(unittest.TestCase):
                 release.builder(self.up)
             called.assert_not_called()
         self.assertEqual((directory / 'sentinel').read_text(), 'preserve cache')
+
+    def test_prior_artifacts_cannot_satisfy_missing_new_build(self):
+        self.prepare()
+        target = self.dest / 'openwrt/bin/targets/msm89xx/msm8916'
+        target.mkdir(parents=True)
+        names = [release.BOARD_PREFIX + suffix for suffix in ['-squashfs-boot.img', '-squashfs-system.img', '.manifest']]
+        for name in names:
+            (target / name).write_bytes(b'old artifact fixture')
+        out = self.root / 'out'
+        out.mkdir()
+        release.quarantine_outputs(self.dest, out)
+        for name in names:
+            self.assertFalse((target / name).exists())
+            self.assertEqual((out / 'previous-build-local-only' / name).read_bytes(), b'old artifact fixture')
+        for name in ['usr/sbin/himi-ok-guard', 'usr/sbin/diag_nv', 'etc/uci-defaults/99-uz801-private-management', 'etc/inittab']:
+            path = self.dest / 'msm89xx/base-files' / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'fixture')
+        with patch.object(release, 'verify', return_value='fixture-commit'), patch.object(release, 'cat_image', return_value=b'fixture'):
+            with self.assertRaisesRegex(RuntimeError, 'Missing build artifact'):
+                release.collect(self.dest, out, self.cfg, 'fixture-commit')
 
     def test_stale_image_member_rejected_before_collection(self):
         self.prepare()

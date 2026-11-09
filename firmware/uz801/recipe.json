@@ -2,14 +2,14 @@
   "schema": 1,
   "upstream_url": "https://github.com/akbar-npj/msm8916-openwrt.git",
   "tested_upstream_commit": "487dfc0a72236460f5cb5cd22ea2d587bfc35b45",
-  "reference_downstream_commit": "291ce8abc3c5676a69340caf400d027d39de8e3f",
+  "reference_downstream_commit": "085a67224cc8e0178e0e68318a89c97fb0502401",
   "patch": "downstream.patch",
-  "patch_sha256": "c841cb50bdfadb39de9ac5ba50247b70211e5a0c0acd1781078e88e34729f662",
+  "patch_sha256": "9eae89f7d829a2f2eda956170728deb6108c62d350678544fb9d7e91adb7024b",
   "board": "yiming,uz801-v3",
   "modem_revision_scope": "HIMI_U01_MODEM_V2.0 (one tested unit; candidate still needs hardware qualification)",
   "required_files": {
-    "msm89xx/base-files/usr/sbin/himi-ok-guard": "c490344882bcfe5c0527535a516807386c2ad3f9ac0a22eb4ea6b4060a267c13",
-    "msm89xx/base-files/usr/sbin/diag_nv": "c0eccd2aec9dee93d076ebd37b02fb94d38a005b2cf2a0932aa14a0965fc3ab3",
+    "msm89xx/base-files/usr/sbin/himi-ok-guard": "4da28fe1b47dc9adadad39a5333aec51b8b9fa4c5d2cf13f07e161148925e93c",
+    "msm89xx/base-files/usr/sbin/diag_nv": "4184dd57d0d10486f7fe348bf15509cc907383ac325b728acc4bb2edb2a16495",
     "msm89xx/base-files/usr/libexec/diag_nv.bin": "a0f4a58e983dfc0ac04514153ccce09ca096b9a712e9229b1d0118d8baf1b713",
     "msm89xx/base-files/etc/init.d/himi-ok": "9e7f3fd845f38a24461f4a5eb5f86feca5d35c6f63b12a0983cbbcaf422d2ee0",
     "msm89xx/base-files/lib/himi-ok.sh": "a6509902dc56e3f0d61e64317674ab3022a3e17ab275e9b41a78a489452cb249",
@@ -17,11 +17,12 @@
     "msm89xx/base-files/etc/inittab": "bc6548a2d54a2e9f7003f78b40a8fcb8358d7a6d3426a0dabf7103fe932b8fa9",
     "packages/uci-usb-gadget/files/usb-gadget.sh": "2c8578daa181dfc4506616bcaccf844388241c87e7e77ec050e7d5253d41711a",
     "tests/himi-ok-guard/run.sh": "ee3a298d79f411e9ed363532351273cedbc9dd4475d1d210f0c1c5c62595d1b8",
-    "tests/himi-ok-guard/test-responses.py": "793dc482c4b2b6cbdfef49873f5d5a53298205b860fb7daa3b0a24a4d97c051f",
+    "tests/himi-ok-guard/test-responses.py": "2406145af94f61ef89723e8dd86a7a036c08c96fb4b6b874171b821fbd8bac9a",
     "tests/private-usb-management/run.py": "813d8b70fa1b6dfa2d6bee49eebca48f95f9479af487f137d031f63ae4f07169",
     "build.sh": "a4c259dfaf6fe7564421daaf9a4b0eed235f3c7cfada7d5b64851e8321f08b45",
     "devenv/docker-compose.yml": "b40a18a546cc815acb6ff5f8c41f33d0a06c234c7c0958bbd4dc5ecf65de5a54",
     "devenv/Dockerfile": "63a46e3c1efb25152bc4126b4b0e727e2e0619f64f8550c26db9d368a8d921a3",
-    "devenv/dependencies.sh": "592b815f6992b70a2a70e99e01f7239ceacff34e689ceaa4fd66557c8a6ca2e9"
+    "devenv/dependencies.sh": "592b815f6992b70a2a70e99e01f7239ceacff34e689ceaa4fd66557c8a6ca2e9",
+    "tests/himi-ok-guard/test-diag-lock.py": "8ee7bd8b71214e9fa9a8f8267530f9557f4ea90c747e0cfd6edbcc80298f92d7"
   }
 }
