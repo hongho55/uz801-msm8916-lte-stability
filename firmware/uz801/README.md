@@ -54,7 +54,7 @@ On an incompatible upstream version, review the upstream changes, port the small
 
 The guarded read must succeed as a process and match the bundled utility's complete output contract: item2500/0x9c4, response length137, status0x0000, eight ordered rows0000..0070, sixteen valid hex bytes each, total128bytes. Wrong/short/extra/ambiguous output is read-only. Existing tokens and foreign payloads are not rewritten. No DIAG cycle is run without a successful lock; a failed write process is not logged as verified success.
 
-The synthetic response suite covers 36 cases. The prior parser was observed attempting a write on a one-row all-zero fixture; the hardened parser rejects that case. These are **fixture tests**, not real-device NV experiments. Both ordinary Linux tools and the original image's BusyBox ash/awk were exercised. The parser is deliberately coupled to the bundled utility; a changed format must be reviewed rather than guessed.
+The synthetic response suite covers 36 cases. The prior parser was observed attempting a write on a one-row all-zero fixture; the hardened parser rejects that case. These are **fixture tests**, not real-device NV experiments. Both ordinary Linux tools and the candidate rootfs's BusyBox ash/awk were exercised. The standalone guard harness requires Linux `flock`; use the builder rather than assuming an unmodified macOS host has it. Its redirected device fixture does not test the real character-device gate or long-running retry timing. A failed lock skips that DIAG cycle and is retried later; fail-closed does not mean the daemon exits. The parser is deliberately coupled to the bundled utility; a changed format must be reviewed rather than guessed.
 
 ## Candidate output
 
