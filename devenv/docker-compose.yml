@@ -25,6 +25,8 @@ services:
       - owrt-tmp:/repo/openwrt/tmp
       # same reason: tar creates mode-000 dirs (u-boot dt-bindings) that virtiofs cannot reopen
       - owrt-build_dir:/repo/openwrt/build_dir
+      # Package staging must preserve Unix permissions without host-share ACLs.
+      - owrt-staging_dir:/repo/openwrt/staging_dir
 
     command: ["/bin/bash"]
 
@@ -34,4 +36,7 @@ volumes:
     external: true
   owrt-build_dir:
     name: uz801-owrt-build_dir
+    external: true
+  owrt-staging_dir:
+    name: uz801-owrt-staging_dir
     external: true
