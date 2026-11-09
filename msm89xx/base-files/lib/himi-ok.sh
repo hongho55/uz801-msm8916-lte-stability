@@ -31,7 +31,9 @@ himi_ok_board_match() {
 	bn="${1:-$(board_name 2>/dev/null)}"
 	[ -n "$bn" ] || return 1
 	list="$(uci -q get modem-watchdog.recovery.himi_ok_boards 2>/dev/null)"
-	[ -n "$list" ] || list="*hmu05* *hmuf02v5* *uz801* *uf02*"
+	# UZ801 is deliberately NOT in this private-build default: the exact HIMI_U01_MODEM_V2.0 unit has no
+	# verified NV-2500 predicate, so no unattended NV write is baked in. Opt in via the uci list below.
+	[ -n "$list" ] || list="*hmu05* *hmuf02v5* *uf02*"
 	# Match bn against each space-separated glob.  Disable pathname expansion
 	# in a subshell, otherwise the unquoted $list is glob-expanded against the
 	# CWD and a file like "hmu05_fsg_extracted" would replace the pattern.

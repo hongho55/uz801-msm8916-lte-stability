@@ -50,6 +50,8 @@ define Device/yiming-uz801v3
 	DEVICE_MODEL := uz801v3
 	SUPPORTED_DEVICES := yiming,uz801-v3
 	FILESYSTEMS := squashfs
+	# Measured size of this unit's eMMC (3909091328 bytes); the 4 GB default is 32 MiB smaller.
+	GPT_TOT_SECTORS := 7634944
 	DEVICE_PACKAGES := msm89xx-scripts wpad-basic-wolfssl rmtfs uci-usb-gadget \
 		block-mount f2fs-tools tar \
 		msm-firmware-dumper reboot-edl qcom-carrier-autocfg \
