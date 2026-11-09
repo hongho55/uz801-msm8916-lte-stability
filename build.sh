@@ -497,7 +497,7 @@ sync_bsp() {
     # Sync openwrt-overlay into the OpenWrt tree if present.
     docker_exec sh -c "
         if [ -d \"$CONTAINER_REPO_DIR/openwrt-overlay\" ]; then
-            cp -a \"$CONTAINER_REPO_DIR/openwrt-overlay/.\" \"$CONTAINER_OPENWRT_DIR/\"
+            (cd \"$CONTAINER_REPO_DIR/openwrt-overlay\" && find . -mindepth 1 -maxdepth 1 -exec cp -a {} \"$CONTAINER_OPENWRT_DIR/\" \;)
         fi
     "
 
