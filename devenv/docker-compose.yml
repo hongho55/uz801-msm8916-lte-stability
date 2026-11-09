@@ -21,5 +21,12 @@ services:
 
     volumes:
       - ..:/repo
+      # Colima/virtiofs cannot reopen the mode-000 temp files GNU patch creates, so keep OpenWrt's tmp/ off the share.
+      - owrt-tmp:/repo/openwrt/tmp
 
     command: ["/bin/bash"]
+
+volumes:
+  owrt-tmp:
+    name: uz801-owrt-tmp
+    external: true
