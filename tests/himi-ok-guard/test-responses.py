@@ -18,7 +18,8 @@ def reply(data=bytes(128), header=HEADER):
     lines = [header]
     for i in range(0, len(data), 16):
         chunk = data[i:i + 16]
-        lines.append(f'{i:04x}  ' + ' '.join(f'{b:02x}' for b in chunk) + '  |' + '.' * len(chunk) + '|')
+        ascii_text = ''.join(chr(b) if 32 <= b < 127 else '.' for b in chunk)
+        lines.append(f'{i:04x}  ' + ' '.join(f'{b:02x}' for b in chunk) + '  |' + ascii_text + '|')
     return '\n'.join(lines) + '\n'
 
 
@@ -56,6 +57,9 @@ cases = [
     ('trailing diagnostic line', zero + 'transport warning\n', 0, False),
     ('leading diagnostic line', 'transport warning\n' + zero, 0, False),
     ('missing ASCII delimiter', zero.replace('  |................|', '', 1), 0, False),
+    ('short ASCII column', zero.replace('|................|', '|X|', 1), 0, False),
+    ('contradictory ASCII column', zero.replace('|................|', '|X...............|', 1), 0, False),
+    ('long ASCII column', zero.replace('|................|', '|.................|', 1), 0, False),
     ('ASCII zeroes hide foreign data', reply(bytes(127) + b'X').replace('|................|', '|0000000000000000|'), 0, False),
     ('nonzero exit with complete zeros', zero, 1, False),
     ('failed exit with existing token', reply(TOKEN), 1, False),

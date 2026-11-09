@@ -95,13 +95,22 @@ payload_hex() {
 		{
 			if (NR > 9 || $0 !~ /[ 	]+\|.*\|$/) reject()
 			line = $0
+			ascii = $0
+			sub(/^[^|]*[|]/, "", ascii)
+			sub(/[|]$/, "", ascii)
+			if (length(ascii) != 16) reject()
+			expected = ""
 			sub(/[ 	]+\|.*$/, "", line)
 			n = split(line, a, /[ 	]+/)
 			if (n != 17 || ("@" a[1]) != ("@" sprintf("%04x", (NR - 2) * 16))) reject()
 			for (i = 2; i <= 17; i++) {
 				if (a[i] !~ /^[0-9a-fA-F][0-9a-fA-F]$/) reject()
 				hex = hex tolower(a[i])
+				digits = "0123456789abcdef"
+				b = (index(digits, tolower(substr(a[i], 1, 1))) - 1) * 16 + index(digits, tolower(substr(a[i], 2, 1))) - 1
+				expected = expected ((b >= 32 && b < 127) ? sprintf("%c", b) : ".")
 			}
+			if (ascii != expected) reject()
 		}
 		END {
 			if (bad || NR != 9 || length(hex) != 256) exit 1

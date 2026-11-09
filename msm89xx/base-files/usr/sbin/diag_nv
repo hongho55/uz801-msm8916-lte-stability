@@ -30,8 +30,9 @@ Options:
   -h, --help   Show this help and exit
 
 Notes:
-  * /dev/rpmsg0 is exclusive-open.  Serialize DIAG users on
-    /var/lock/himi-ok-diag.lock (himi-ok-guard already does).
+  * This wrapper serializes on /var/lock/himi-ok-diag.lock and preserves
+    the guard's inherited lock across its read/check/write cycle.
+    Direct binary/raw DIAG callers must honor the same lock.
   * Reply byte 0x14 = "invalid parameter"; status 0x42 = NV locked by the
     service programming state.
 
@@ -45,4 +46,13 @@ USAGE
 		;;
 esac
 
+# Reuse the guard's open-file description rather than opening a second one
+# and deadlocking against our parent. Never trust an environment-only bypass.
+DIAG_LOCK=/var/lock/himi-ok-diag.lock
+if ! [ /proc/self/fd/200 -ef "$DIAG_LOCK" ]; then
+	exec 200>"$DIAG_LOCK"
+fi
+flock -x 200 || exit 1
+# No explicit unlock: exec/exit closes our reference; a parent guard keeps its
+# inherited reference locked until the whole guarded transaction completes.
 exec /usr/libexec/diag_nv.bin "$@"
