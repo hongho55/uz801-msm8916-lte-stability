@@ -6,6 +6,8 @@ Reproducible diagnostics and recovery notes for periodic Qualcomm MPSS/ML1 failu
 
 ## Latest experiment
 
+- [Repeatable downstream build recipe / 새 upstream 버전 적용·빌드](firmware/uz801/README.md) — pinned source, reviewed patches, fail-closed drift checks, regressions and candidate packaging; never automatic flashing or stable promotion.
+
 - [Final report, risks, build identity and sanitized evidence](docs/uz801-himi2500-experiment-2026-11-10.md)
 - [Experimental firmware release](https://github.com/hongho55/uz801-msm8916-lte-stability/releases/tag/uz801-himi2500-experiment-20261110)
 - [Exact firmware/BSP source branch](https://github.com/hongho55/uz801-msm8916-lte-stability/tree/firmware/uz801-himi2500-experiment)

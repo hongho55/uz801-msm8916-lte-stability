@@ -1,0 +1,21 @@
+name: UZ801 recipe regression
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  recipe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate checked-in recipe identity
+        run: python3 -c "import runpy; m = runpy.run_path('scripts/uz801-release.py'); m['recipe']()"
+      - name: Hardware-free recipe regressions
+        run: python3 scripts/test-uz801-release.py
+      - name: Experimental evidence consistency
+        run: python3 scripts/validate-himi2500-evidence.py
