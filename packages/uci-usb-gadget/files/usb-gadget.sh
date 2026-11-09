@@ -201,7 +201,7 @@ setup_acm() {
     if [ "$CFG_ACM_SHELL" = "1" ]; then
         log "Enabling serial shell on ttyGS0"
         sed -i '/ttyGS0/d' /etc/inittab
-        echo "ttyGS0::askfirst:/usr/libexec/login.sh" >> /etc/inittab
+        echo "ttyGS0::respawnlate:/sbin/askfirst /usr/libexec/login.sh" >> /etc/inittab
     else
         log "ACM in raw TTY mode (removing shell from inittab)"
         sed -i '/ttyGS0/d' /etc/inittab

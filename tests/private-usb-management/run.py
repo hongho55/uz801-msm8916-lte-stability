@@ -25,4 +25,7 @@ for board in ['yiming,uz801-v3', 'jz02,other']:
             assert setting in result.stdout, setting
     else:
         assert not result.stdout, result.stdout
-print('PASS: late-console declaration, firstboot ordering, shell syntax, UZ801 cellular-off/ECM settings, non-UZ801 guard')
+gadget = (r / 'packages/uci-usb-gadget/files/usb-gadget.sh').read_text()
+assert 'echo "ttyGS0::respawnlate:/sbin/askfirst /usr/libexec/login.sh"' in gadget
+assert 'echo "ttyGS0::askfirst:/usr/libexec/login.sh"' not in gadget
+print('PASS: late-console declaration/persistence, firstboot ordering, shell syntax, UZ801 cellular-off/ECM settings, non-UZ801 guard')
