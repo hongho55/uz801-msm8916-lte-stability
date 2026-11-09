@@ -21,7 +21,11 @@ for board in ['yiming,uz801-v3', 'jz02,other']:
     if board == 'yiming,uz801-v3':
         for setting in ["set network.modem.auto='0'", "set usbgadget.ecm.enabled='1'",
                         "set usbgadget.ncm.enabled='0'", "set network.@device[0].bridge_empty='1'",
-                        'commit network', 'commit usbgadget']:
+                        "set modem-watchdog.recovery.himi_ok_boards='yiming,uz801-v3'",
+                        "set modem-watchdog.recovery.himi_ok_enabled='1'",
+                        "set modem-watchdog.recovery.himi_ok_interval='20'",
+                        "set modem-watchdog.general.enabled='0'",
+                        'commit network', 'commit usbgadget', 'commit modem-watchdog']:
             assert setting in result.stdout, setting
     else:
         assert not result.stdout, result.stdout
