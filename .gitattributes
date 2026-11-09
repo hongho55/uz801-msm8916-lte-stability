@@ -1,0 +1,2 @@
+# Unified-diff context records intentionally contain a leading space.
+docs/patches/*.patch -whitespace

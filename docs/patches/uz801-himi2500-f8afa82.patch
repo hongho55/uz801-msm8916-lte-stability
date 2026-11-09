@@ -1,0 +1,190 @@
+diff --git a/build.sh b/build.sh
+index 1d34c3a..d747520 100755
+--- a/build.sh
++++ b/build.sh
+@@ -497,7 +497,7 @@ sync_bsp() {
+     # Sync openwrt-overlay into the OpenWrt tree if present.
+     docker_exec sh -c "
+         if [ -d \"$CONTAINER_REPO_DIR/openwrt-overlay\" ]; then
+-            cp -a \"$CONTAINER_REPO_DIR/openwrt-overlay/.\" \"$CONTAINER_OPENWRT_DIR/\"
++            (cd \"$CONTAINER_REPO_DIR/openwrt-overlay\" && find . -mindepth 1 -maxdepth 1 -exec cp -a {} \"$CONTAINER_OPENWRT_DIR/\" \;)
+         fi
+     "
+ 
+diff --git a/devenv/docker-compose.yml b/devenv/docker-compose.yml
+index 52df6a5..f16702f 100644
+--- a/devenv/docker-compose.yml
++++ b/devenv/docker-compose.yml
+@@ -21,5 +21,22 @@ services:
+ 
+     volumes:
+       - ..:/repo
++      # Colima/virtiofs cannot reopen the mode-000 temp files GNU patch creates, so keep OpenWrt's tmp/ off the share.
++      - owrt-tmp:/repo/openwrt/tmp
++      # same reason: tar creates mode-000 dirs (u-boot dt-bindings) that virtiofs cannot reopen
++      - owrt-build_dir:/repo/openwrt/build_dir
++      # Package staging must preserve Unix permissions without host-share ACLs.
++      - owrt-staging_dir:/repo/openwrt/staging_dir
+ 
+     command: ["/bin/bash"]
++
++volumes:
++  owrt-tmp:
++    name: uz801-owrt-tmp
++    external: true
++  owrt-build_dir:
++    name: uz801-owrt-build_dir
++    external: true
++  owrt-staging_dir:
++    name: uz801-owrt-staging_dir
++    external: true
+diff --git a/diffconfigs/uz801 b/diffconfigs/uz801
+index 9977f68..cd32415 100644
+--- a/diffconfigs/uz801
++++ b/diffconfigs/uz801
+@@ -417,6 +417,12 @@ CONFIG_PACKAGE_kmod-ipt-nfqueue=m
+ # CONFIG_FEED_telephony is not set
+ # CONFIG_FEED_video is not set
+ 
++# Private Linux ARM64 builder: use the Docker image's existing Go 1.18
++# to skip the Go 1.4 bootstrap, which does not support linux/arm64.
++# Keep the feed's 1.17 -> 1.20 -> 1.22 -> 1.24 source bootstrap stages.
++CONFIG_GOLANG_EXTERNAL_BOOTSTRAP_ROOT="/usr/lib/go-1.18"
++CONFIG_GOLANG_BUILD_BOOTSTRAP=y
++
+ CONFIG_VERSIONOPT=y
+ CONFIG_VERSION_FILENAMES=n
+ CONFIG_VERSION_DIST="msm8916-openwrt"
+diff --git a/msm89xx/base-files/etc/inittab b/msm89xx/base-files/etc/inittab
+new file mode 100644
+index 0000000..de37c1d
+--- /dev/null
++++ b/msm89xx/base-files/etc/inittab
+@@ -0,0 +1,5 @@
++::sysinit:/etc/init.d/rcS S boot
++::shutdown:/etc/init.d/rcS K shutdown
++::askconsole:/usr/libexec/login.sh
++# Private UZ801 image: start only after rcS has created the USB tty.
++ttyGS0::respawnlate:/sbin/askfirst /usr/libexec/login.sh
+diff --git a/msm89xx/base-files/etc/uci-defaults/99-uz801-private-management b/msm89xx/base-files/etc/uci-defaults/99-uz801-private-management
+new file mode 100755
+index 0000000..a7d9d06
+--- /dev/null
++++ b/msm89xx/base-files/etc/uci-defaults/99-uz801-private-management
+@@ -0,0 +1,20 @@
++#!/bin/sh
++# Private UZ801 settings, after 99-msm89xx-firstboot.
++[ "$(cat /tmp/sysinfo/board_name 2>/dev/null)" = 'yiming,uz801-v3' ] || exit 0
++# EXPERIMENT: exact-board NV2500 opt-in; no automatic data/recovery.
++uci -q batch <<'EOF'
++set network.modem.auto='0'
++set network.@device[0].bridge_empty='1'
++set usbgadget.ecm.enabled='1'
++set usbgadget.ncm.enabled='0'
++set usbgadget.acm.enabled='1'
++set usbgadget.acm.shell='1'
++set modem-watchdog.recovery.himi_ok_boards='yiming,uz801-v3'
++set modem-watchdog.recovery.himi_ok_enabled='1'
++set modem-watchdog.recovery.himi_ok_interval='20'
++set modem-watchdog.general.enabled='0'
++commit network
++commit usbgadget
++commit modem-watchdog
++EOF
++exit 0
+diff --git a/msm89xx/base-files/lib/himi-ok.sh b/msm89xx/base-files/lib/himi-ok.sh
+index f740924..315ed1c 100644
+--- a/msm89xx/base-files/lib/himi-ok.sh
++++ b/msm89xx/base-files/lib/himi-ok.sh
+@@ -31,7 +31,9 @@ himi_ok_board_match() {
+ 	bn="${1:-$(board_name 2>/dev/null)}"
+ 	[ -n "$bn" ] || return 1
+ 	list="$(uci -q get modem-watchdog.recovery.himi_ok_boards 2>/dev/null)"
+-	[ -n "$list" ] || list="*hmu05* *hmuf02v5* *uz801* *uf02*"
++	# UZ801 is deliberately NOT in this private-build default: the exact HIMI_U01_MODEM_V2.0 unit has no
++	# verified NV-2500 predicate, so no unattended NV write is baked in. Opt in via the uci list below.
++	[ -n "$list" ] || list="*hmu05* *hmuf02v5* *uf02*"
+ 	# Match bn against each space-separated glob.  Disable pathname expansion
+ 	# in a subshell, otherwise the unquoted $list is glob-expanded against the
+ 	# CWD and a file like "hmu05_fsg_extracted" would replace the pattern.
+diff --git a/msm89xx/image/msm8916.mk b/msm89xx/image/msm8916.mk
+index d8c1fa8..6c9863d 100644
+--- a/msm89xx/image/msm8916.mk
++++ b/msm89xx/image/msm8916.mk
+@@ -50,6 +50,8 @@ define Device/yiming-uz801v3
+ 	DEVICE_MODEL := uz801v3
+ 	SUPPORTED_DEVICES := yiming,uz801-v3
+ 	FILESYSTEMS := squashfs
++	# Measured size of this unit's eMMC (3909091328 bytes); the 4 GB default is 32 MiB smaller.
++	GPT_TOT_SECTORS := 7634944
+ 	DEVICE_PACKAGES := msm89xx-scripts wpad-basic-wolfssl rmtfs uci-usb-gadget \
+ 		block-mount f2fs-tools tar \
+ 		msm-firmware-dumper reboot-edl qcom-carrier-autocfg \
+diff --git a/packages/uci-usb-gadget/files/usb-gadget.sh b/packages/uci-usb-gadget/files/usb-gadget.sh
+index 98688d8..b1d6bbd 100644
+--- a/packages/uci-usb-gadget/files/usb-gadget.sh
++++ b/packages/uci-usb-gadget/files/usb-gadget.sh
+@@ -201,7 +201,7 @@ setup_acm() {
+     if [ "$CFG_ACM_SHELL" = "1" ]; then
+         log "Enabling serial shell on ttyGS0"
+         sed -i '/ttyGS0/d' /etc/inittab
+-        echo "ttyGS0::askfirst:/usr/libexec/login.sh" >> /etc/inittab
++        echo "ttyGS0::respawnlate:/sbin/askfirst /usr/libexec/login.sh" >> /etc/inittab
+     else
+         log "ACM in raw TTY mode (removing shell from inittab)"
+         sed -i '/ttyGS0/d' /etc/inittab
+diff --git a/tests/himi-ok-guard/run.sh b/tests/himi-ok-guard/run.sh
+index c6a4838..6584d85 100755
+--- a/tests/himi-ok-guard/run.sh
++++ b/tests/himi-ok-guard/run.sh
+@@ -154,7 +154,8 @@ run_all() {
+         T=$s PATH="$BIN:$PATH" sh -c ". '$BOARD_SRC'; himi_ok_board_match \"\$1\"" _ "$1"
+     }
+     check "gate: hmuf02v5 matches"                                gate "generic,hmuf02v5"
+-    check "gate: yiming,uz801-v3 matches"                      gate "yiming,uz801-v3"
++    check "gate: yiming,uz801-v3 is NOT in the private default" not gate "yiming,uz801-v3"
++    check "gate: yiming,uz801-v3 can opt in via uci list"      gate "yiming,uz801-v3" "*uz801*"
+     check "gate: uf02 matches"                                 gate "generic,uf02"
+     check "gate: ufi001b does NOT match"                       not gate "ufi001b"
+     check "gate: empty board name does not match"              not gate ""
+diff --git a/tests/private-usb-management/run.py b/tests/private-usb-management/run.py
+new file mode 100644
+index 0000000..a2045e6
+--- /dev/null
++++ b/tests/private-usb-management/run.py
+@@ -0,0 +1,35 @@
++#!/usr/bin/env python3
++"""Private build regressions; not a substitute for device boot verification."""
++from pathlib import Path
++import subprocess
++r = Path(__file__).resolve().parents[2]
++p = r / 'msm89xx/base-files/etc'
++s = (p / 'uci-defaults/99-uz801-private-management').read_text()
++init = (p / 'inittab').read_text()
++assert 'ttyGS0::respawnlate:/sbin/askfirst /usr/libexec/login.sh' in init
++assert 'ttyGS0::askfirst:' not in init
++assert init.count('::sysinit:') == 1
++assert init.count('::shutdown:') == 1
++assert '99-msm89xx-firstboot' < '99-uz801-private-management'
++subprocess.run(['sh', '-n', str(p / 'uci-defaults/99-uz801-private-management')], check=True)
++for board in ['yiming,uz801-v3', 'jz02,other']:
++    # Fixture replaces only board lookup and UCI; run the real shell script.
++    harness = 'cat() { printf "%s\\n" "$TEST_BOARD"; }; uci() { command cat; };\n' + s
++    import os
++    result = subprocess.run(['sh'], input=harness, text=True, capture_output=True,
++                            env={**os.environ, 'TEST_BOARD': board}, check=True)
++    if board == 'yiming,uz801-v3':
++        for setting in ["set network.modem.auto='0'", "set usbgadget.ecm.enabled='1'",
++                        "set usbgadget.ncm.enabled='0'", "set network.@device[0].bridge_empty='1'",
++                        "set modem-watchdog.recovery.himi_ok_boards='yiming,uz801-v3'",
++                        "set modem-watchdog.recovery.himi_ok_enabled='1'",
++                        "set modem-watchdog.recovery.himi_ok_interval='20'",
++                        "set modem-watchdog.general.enabled='0'",
++                        'commit network', 'commit usbgadget', 'commit modem-watchdog']:
++            assert setting in result.stdout, setting
++    else:
++        assert not result.stdout, result.stdout
++gadget = (r / 'packages/uci-usb-gadget/files/usb-gadget.sh').read_text()
++assert 'echo "ttyGS0::respawnlate:/sbin/askfirst /usr/libexec/login.sh"' in gadget
++assert 'echo "ttyGS0::askfirst:/usr/libexec/login.sh"' not in gadget
++print('PASS: late-console declaration/persistence, firstboot ordering, shell syntax, UZ801 cellular-off/ECM settings, non-UZ801 guard')

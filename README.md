@@ -2,7 +2,16 @@
 
 Reproducible diagnostics and recovery notes for periodic Qualcomm MPSS/ML1 failures on a UZ801 v3 running mainline-style OpenWrt.
 
-> **Status:** mitigation verified; root cause not proven. Do not treat this repository as a firmware fix.
+> **Status (2026-11-10):** an experimental guarded HiMI_OK/NV2500 image crossed the earlier ~15-minute fatal window on one UZ801. LTE connection uptime reached **39 min 54 s**, with 39 successful minute-spaced pings after one initial failed sample. Data was disabled and detachment verified after the trial. This is **not** a universal or long-term stability claim.
+
+## Latest experiment
+
+- [Final report, risks, build identity and sanitized evidence](docs/uz801-himi2500-experiment-2026-11-10.md)
+- [Experimental firmware release](https://github.com/hongho55/uz801-msm8916-lte-stability/releases/tag/uz801-himi2500-experiment-20261110)
+- [Exact firmware/BSP source branch](https://github.com/hongho55/uz801-msm8916-lte-stability/tree/firmware/uz801-himi2500-experiment)
+- Thanks to [@akbar-npj and the linked upstream investigation](https://github.com/hongho55/uz801-msm8916-lte-stability/issues/1). The HiMI_OK method and guard are upstream work, not our invention.
+
+**Warning:** this image can automatically write NV item 2500 on the exact opted-in board after boot. Standalone boot/system images are not generic sysupgrade or whole-device flashing inputs. Read the report before downloading or installing. The August findings below remain historical evidence, not the latest experiment's environment. Upstream firmware/patches retain their own licenses; this documentation repository's MIT license does not relicense them.
 
 ## Public investigation record
 
@@ -13,7 +22,7 @@ Reproducible diagnostics and recovery notes for periodic Qualcomm MPSS/ML1 failu
 
 The `research/` directory is intentionally local-only and ignored. Raw remoteproc cores, modem/NV/QCN/EFS data, device identifiers, credentials, and unreviewed capture logs are not part of the public repository.
 
-## Tested environment
+## Historical tested environment (August 2026)
 
 - Board: `yiming,uz801-v3` / Qualcomm MSM8916
 - OpenWrt: 25.12.5
