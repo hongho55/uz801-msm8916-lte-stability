@@ -205,6 +205,9 @@ class RecipeTests(unittest.TestCase):
             path = self.dest / 'msm89xx/base-files' / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b'fixture')
+        gadget = self.dest / 'packages/uci-usb-gadget/files/usb-gadget.sh'
+        gadget.parent.mkdir(parents=True, exist_ok=True)
+        gadget.write_bytes(b'fixture')
         with patch.object(release, 'verify', return_value='fixture-commit'), patch.object(release, 'cat_image', return_value=b'fixture'):
             with self.assertRaisesRegex(RuntimeError, 'Missing build artifact'):
                 release.collect(self.dest, out, self.cfg, 'fixture-commit')
@@ -219,6 +222,27 @@ class RecipeTests(unittest.TestCase):
         with patch.object(release, 'verify', return_value='fixture-commit'), \
              patch.object(release, 'cat_image', return_value=b'old guard fixture'):
             with self.assertRaisesRegex(RuntimeError, 'Stale/wrong system image'):
+                release.collect(self.dest, out, self.cfg, 'fixture-commit')
+        self.assertEqual(list(out.iterdir()), [])
+
+
+    def test_stale_usb_gadget_rejected_before_collection(self):
+        self.prepare()
+        out = self.root / 'out'
+        out.mkdir()
+        for name in ['usr/sbin/himi-ok-guard', 'usr/sbin/diag_nv',
+                     'etc/uci-defaults/99-uz801-private-management', 'etc/inittab']:
+            path = self.dest / 'msm89xx/base-files' / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'fixture')
+        gadget = self.dest / 'packages/uci-usb-gadget/files/usb-gadget.sh'
+        gadget.parent.mkdir(parents=True, exist_ok=True)
+        gadget.write_bytes(b'new gadget fixture')
+        def member(source, system, name):
+            return b'old gadget fixture' if name == 'usr/sbin/usb-gadget' else b'fixture'
+        with patch.object(release, 'verify', return_value='fixture-commit'), \
+             patch.object(release, 'cat_image', side_effect=member):
+            with self.assertRaisesRegex(RuntimeError, 'Stale/wrong system image member: usr/sbin/usb-gadget'):
                 release.collect(self.dest, out, self.cfg, 'fixture-commit')
         self.assertEqual(list(out.iterdir()), [])
 

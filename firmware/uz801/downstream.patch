@@ -264,7 +264,7 @@ index d8c1fa8..6c9863d 100644
  		block-mount f2fs-tools tar \
  		msm-firmware-dumper reboot-edl qcom-carrier-autocfg \
 diff --git a/packages/uci-usb-gadget/files/usb-gadget.sh b/packages/uci-usb-gadget/files/usb-gadget.sh
-index 98688d8..b1d6bbd 100644
+index 98688d8..190696d 100644
 --- a/packages/uci-usb-gadget/files/usb-gadget.sh
 +++ b/packages/uci-usb-gadget/files/usb-gadget.sh
 @@ -201,7 +201,7 @@ setup_acm() {
@@ -276,6 +276,20 @@ index 98688d8..b1d6bbd 100644
      else
          log "ACM in raw TTY mode (removing shell from inittab)"
          sed -i '/ttyGS0/d' /etc/inittab
+@@ -452,9 +452,10 @@ teardown_gadget() {
+     cd /sys/kernel/config/usb_gadget
+     rmdir "$CFG_GADGET_NAME" 2>/dev/null || true
+     
+-    # Clean shell from inittab
+-    sed -i '/ttyGS0/d' /etc/inittab
+-    kill -HUP 1 2>/dev/null || true
++    # Preserve persistent console policy across stop/shutdown. procd reads
++    # inittab before sysinit and does not reload it on SIGHUP; deleting the
++    # entry here loses the console on the next boot. setup_acm owns explicit
++    # shell enable/disable policy; ordinary gadget teardown must not erase it.
+     
+     log "Teardown complete"
+     log "USB port available for host mode"
 diff --git a/tests/himi-ok-guard/run.sh b/tests/himi-ok-guard/run.sh
 index c6a4838..c823a8e 100755
 --- a/tests/himi-ok-guard/run.sh
@@ -537,10 +551,10 @@ index 0000000..8f0a94d
 +print(f'{len(cases)} response cases passed; real parser/guard, synthetic DIAG only')
 diff --git a/tests/private-usb-management/run.py b/tests/private-usb-management/run.py
 new file mode 100644
-index 0000000..a2045e6
+index 0000000..cb644fa
 --- /dev/null
 +++ b/tests/private-usb-management/run.py
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,85 @@
 +#!/usr/bin/env python3
 +"""Private build regressions; not a substitute for device boot verification."""
 +from pathlib import Path
@@ -575,4 +589,54 @@ index 0000000..a2045e6
 +gadget = (r / 'packages/uci-usb-gadget/files/usb-gadget.sh').read_text()
 +assert 'echo "ttyGS0::respawnlate:/sbin/askfirst /usr/libexec/login.sh"' in gadget
 +assert 'echo "ttyGS0::askfirst:/usr/libexec/login.sh"' not in gadget
-+print('PASS: late-console declaration/persistence, firstboot ordering, shell syntax, UZ801 cellular-off/ECM settings, non-UZ801 guard')
++# Execute the shipped setup/teardown functions in a redirected filesystem.
++# PID1 signals, UCI and network reload are stubbed; no device is accessed.
++import tempfile, shlex, re
++
++def function(name):
++    match = re.search(r'^' + name + r'\(\) \{\n.*?^\}', gadget, re.M | re.S)
++    assert match, name
++    return match.group(0)
++
++with tempfile.TemporaryDirectory(prefix='usb-console-lifecycle-') as tmp:
++    root = Path(tmp)
++    configfs = root / 'configfs'
++    configfs.mkdir()
++    tab = root / 'inittab'
++    tab.write_text(init)
++    trace = root / 'trace'
++    redirected = (function('setup_acm') + '\n' + function('teardown_gadget'))
++    redirected = redirected.replace('/etc/inittab', shlex.quote(str(tab)))
++    redirected = redirected.replace('/sys/kernel/config/usb_gadget', shlex.quote(str(configfs)))
++    redirected = redirected.replace('/etc/init.d/network reload', 'network_reload')
++    harness = '''
++load_config() { :; }
++log() { :; }
++uci() { printf 'uci %s\\n' "$*" >> "$TRACE"; }
++network_reload() { printf 'reload\\n' >> "$TRACE"; }
++kill() { printf 'signal %s\\n' "$*" >> "$TRACE"; }
++prepare() {
++    mkdir -p "$CFG_GADGET_PATH/functions" "$CFG_CONFIG_PATH" "$CFG_GADGET_PATH/strings/0x409"
++}
++''' + redirected + '\n'
++    env = {**os.environ, 'CFG_GADGET_PATH': str(configfs / 'g1'),
++           'CFG_GADGET_NAME': 'g1', 'CFG_CONFIG_PATH': str(configfs / 'g1/configs/c.1'),
++           'CFG_ACM_SHELL': '1', 'TRACE': str(trace)}
++    def exercise(commands):
++        subprocess.run(shlex.split(os.environ.get('USB_TEST_SHELL', 'sh')), input=harness + commands, env=env,
++                       text=True, capture_output=True, check=True)
++    # A subsequent boot parses this persistent file BEFORE gadget startup.
++    exercise('prepare; setup_acm; teardown_gadget\n')
++    assert tab.read_text() == init, 'shutdown erased the next-boot console declaration'
++    for _ in range(3):
++        exercise('prepare; setup_acm; teardown_gadget\n')
++        assert tab.read_text() == init, 'repeated lifecycle changed persistent console policy'
++    exercise('CFG_GADGET_PATH="$CFG_GADGET_PATH-absent"; teardown_gadget\n')
++    assert tab.read_text() == init
++    assert 'reload' in trace.read_text(), 'network teardown was not exercised'
++    # Explicit shell=0 remains the separate opt-out policy, not ordinary stop.
++    exercise('prepare; CFG_ACM_SHELL=0; setup_acm; teardown_gadget\n')
++    assert 'ttyGS0' not in tab.read_text()
++    exercise('prepare; CFG_ACM_SHELL=1; setup_acm; setup_acm; teardown_gadget\n')
++    assert tab.read_text() == init, 'enable/repeated setup duplicated or lost console entry'
++print('PASS: firstboot/board checks + real redirected USB lifecycle preserves next-boot console, repeated stop/start, explicit shell opt-out/enable')

@@ -169,6 +169,9 @@ def collect(source, output, cfg, commit):
         expected = (source / 'msm89xx/base-files' / name).read_bytes()
         if cat_image(source, system, name) != expected:
             raise RuntimeError('Stale/wrong system image member: ' + name)
+    gadget = source / 'packages/uci-usb-gadget/files/usb-gadget.sh'
+    if cat_image(source, system, 'usr/sbin/usb-gadget') != gadget.read_bytes():
+        raise RuntimeError('Stale/wrong system image member: usr/sbin/usb-gadget')
     for name in [BOARD_PREFIX + '-squashfs-boot.img', BOARD_PREFIX + '-squashfs-system.img', BOARD_PREFIX + '.manifest']:
         origin = target / name
         if not origin.is_file() or origin.stat().st_size == 0:
@@ -194,7 +197,7 @@ def collect(source, output, cfg, commit):
         'pipeline_runner_sha256': RUNNER_SHA256,
         'builder_image_id': text(['docker', 'inspect', CONTAINER, '--format', '{{.Image}}']),
         'openwrt_commit': owrt, 'feeds': feeds,
-        'image_member_verification': 'matched built guard, DIAG wrapper, firstboot and inittab bytes',
+        'image_member_verification': 'matched built guard, DIAG wrapper, firstboot, inittab and USB gadget bytes',
         'artifact_regeneration': 'prior board outputs quarantined before build; all three outputs recreated',
         'checks': ['synthetic DIAG replies', 'DIAG wrapper real-flock regression', 'guard regression', 'board profile self-check', 'management regression'],
         'warnings': ['NV2500 may be written on first boot', 'development USB shell/default account state',

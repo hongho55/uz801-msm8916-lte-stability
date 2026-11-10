@@ -8,6 +8,10 @@ This recipe targets the measured `yiming,uz801-v3` / `HIMI_U01_MODEM_V2.0` exper
 
 The original [experimental release](https://github.com/hongho55/uz801-msm8916-lte-stability/releases/tag/uz801-himi2500-experiment-20261110) is preserved. Its 39m54s observation applies to its original image, **not automatically to a newly built candidate**.
 
+## USB-console source follow-up
+
+The recipe now targets source `dbe882c`: ordinary gadget teardown preserves the persistent console inittab entry. The redirected real setup/teardown regression reproduced the loss on f00a436 and passes with this change, including repeated cycles and explicit shell opt-out/enable under Linux sh and candidate BusyBox ash. The collector additionally compares the packaged USB-gadget script against source (five critical members total). Hardware restart verification is still pending. The published f00a436 prerelease remains unchanged and does not include this fix. USB Ethernet investigation is deferred.
+
 ## Prerequisites
 
 - Python 3, Git, Docker with Compose; one builder at a time.
@@ -45,7 +49,7 @@ A source mirror/cache can be supplied with `--upstream-url`; the resolved upstre
 - Existing destination, modified tracked files, filesystem warnings or a wrong repository root. Untracked **and ignored** files in the audited BSP/package/overlay/patch/config/script/build-environment input directories are rejected too; unrelated research Docs and generated OpenWrt caches are not blanket-deleted.
 - Tampered recipe patch checksum, a patch that no longer applies, or changed critical files/DIAG utility. There is no force/fuzzy-patch/old-version fallback.
 - Regression failure, build failure, missing images, or source changes during the build.
-- Prior boot/system/manifest outputs are quarantined under `previous-build-local-only/` before make runs, so all three must be recreated. The rebuilt system's extracted guard, DIAG wrapper, firstboot and inittab must match source. This is targeted member/provenance validation, **not** a byte-for-byte audit of the complete filesystem or a proof of reproducible binaries.
+- Prior boot/system/manifest outputs are quarantined under `previous-build-local-only/` before make runs, so all three must be recreated. The rebuilt system's extracted guard, DIAG wrapper, firstboot, inittab and USB-gadget script must match source. This is targeted member/provenance validation, **not** a byte-for-byte audit of the complete filesystem or a proof of reproducible binaries.
 - A concurrent recipe build; the shared builder is host-locked. Do not also launch unrelated manual builds into the same cache while this tool runs.
 
 On an incompatible upstream version, review the upstream changes, port the smallest required patch, rerun regressions, update the recipe checksums and try again in a fresh checkout. **Do not remove checks to make an upgrade pass.** Critical file hashes intentionally require explicit review when the DIAG format or guard changes.
