@@ -4,7 +4,17 @@ Reproducible diagnostics and recovery notes for periodic Qualcomm MPSS/ML1 failu
 
 > **Status (2026-11-10):** an experimental guarded HiMI_OK/NV2500 image crossed the earlier ~15-minute fatal window on one UZ801. LTE connection uptime reached **39 min 54 s**, with 39 successful minute-spaced pings after one initial failed sample. Data was disabled and detachment verified after the trial. This is **not** a universal or long-term stability claim.
 
-## Latest experiment
+## Current candidate — f00a436 (not stable)
+
+- [Download candidate firmware, source, checksums and qualification report](https://github.com/hongho55/uz801-msm8916-lte-stability/releases/tag/uz801-candidate-f00a436-20261110)
+- [Partial hardware qualification / known USB-console issue](docs/uz801-candidate-f00a436-qualification-2026-11-10.md)
+- [Build recipe and review PR](https://github.com/hongho55/uz801-msm8916-lte-stability/pull/3)
+- Installed/readback-verified on one `yiming,uz801-v3` / `HIMI_U01_MODEM_V2.0`; 29/29 minute-spaced pings over about 28 minutes. This is separate from the older 39m54s experiment below.
+- **Known blocker:** after a normal software restart, USB ACM enumerates but the console does not respond. Mac USB Ethernet connectivity was not established even before this restart. A fresh phone scan still sees the AP, but Wi-Fi DHCP/SSH/web access was not tested.
+- **Strong code-level lead, not a confirmed runtime diagnosis:** USB-gadget teardown removes the persistent console inittab entry, while the built procd does not reload inittab on SIGHUP. The candidate still contains this path. No fix or retest is included in this binary.
+- No stable promotion or automatic installation. Boot may write NV2500 on the opted-in board. Default/open management access is unsuitable for unattended deployment. The 40-minute and overnight tests were explicitly excluded; repeated cold boots and handset network tests remain unverified.
+
+## Earlier experiment
 
 - [Repeatable downstream build recipe / 새 upstream 버전 적용·빌드](firmware/uz801/README.md) — pinned source, reviewed patches, fail-closed drift checks, regressions and candidate packaging; never automatic flashing or stable promotion.
 

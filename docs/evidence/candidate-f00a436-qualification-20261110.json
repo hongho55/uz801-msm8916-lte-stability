@@ -39,5 +39,16 @@
     "run past the 39m54s prior observation",
     "overnight soak",
     "independent A/B without the guard on this image"
-  ]
+  ],
+  "software_restart": {
+    "attempts_on_this_candidate": 1,
+    "usb_acm_enumerated": true,
+    "console_returned": false,
+    "host_usb_reset_recovered_console": false,
+    "fresh_ap_scan_observed": true,
+    "wifi_client_path_tested": false,
+    "mac_ecm_worked_before_restart": false,
+    "inittab_teardown_lead": "code-level hypothesis only; not confirmed by post-restart device read",
+    "fixed_in_this_binary": false
+  }
 }
