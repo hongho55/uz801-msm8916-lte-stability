@@ -10,10 +10,17 @@ Reproducible diagnostics and recovery notes for periodic Qualcomm MPSS/ML1 failu
 - [Partial hardware qualification / known USB-console issue](docs/uz801-candidate-f00a436-qualification-2026-11-10.md)
 - [Build recipe and review PR](https://github.com/hongho55/uz801-msm8916-lte-stability/pull/3)
 - Installed/readback-verified on one `yiming,uz801-v3` / `HIMI_U01_MODEM_V2.0`; 29/29 minute-spaced pings over about 28 minutes. This is separate from the older 39m54s experiment below.
-- **Follow-up source fix:** [`dbe882c`](https://github.com/hongho55/uz801-msm8916-lte-stability/commit/dbe882c425c9efb74c2716580a648f27520c8aa8) preserves the console entry during gadget teardown. The real redirected lifecycle test fails on the old source and passes after the change (Linux sh and candidate BusyBox ash). This is not installed or hardware-retested; it does not change the f00a436 binary linked above.
-- **Known blocker:** after a normal software restart, USB ACM enumerates but the console does not respond. Mac USB Ethernet connectivity was not established even before this restart. A fresh phone scan still sees the AP, but Wi-Fi DHCP/SSH/web access was not tested.
-- **Strong code-level lead, not a confirmed runtime diagnosis:** USB-gadget teardown removes the persistent console inittab entry, while the built procd does not reload inittab on SIGHUP. The candidate still contains this path. No fix or retest is included in this binary.
+- **Follow-up source fix:** [`dbe882c`](https://github.com/hongho55/uz801-msm8916-lte-stability/commit/dbe882c425c9efb74c2716580a648f27520c8aa8) preserves the console entry during teardown; Linux sh/BusyBox lifecycle regressions pass. Only that script was tested in the installed f00a436 overlay, **not the full dbe882c image**. It did not eliminate intermittent warm-reboot console failures. The published f00a436 binary is unchanged and does not contain this fix.
+- **Latest hardware finding:** during silent-console failures, Wi-Fi DHCP and HTTP/ubus management worked, the console shell remained alive, and a USB-sent command executed on-device despite no host readback. ACM-only mode also failed. A single ACM data-interface reset restored the console without rebooting; no periodic workaround was installed.
+- **Unresolved transport failure:** controller observations found outstanding console TX requests while the TX endpoint was inactive. This localizes the symptom, not its root cause; no kernel fix or stable qualification is claimed. See the [USB-console / vehicle-use follow-up](docs/uz801-usb-console-vehicle-followup-2026-11-10.md) for bounded trials, source/image distinctions and recovery limits.
 - No stable promotion or automatic installation. Boot may write NV2500 on the opted-in board. Default/open management access is unsuitable for unattended deployment. The 40-minute and overnight tests were explicitly excluded; repeated cold boots and handset network tests remain unverified.
+
+### 차량 사용 기준 / Vehicle-use status
+
+- 차량 USB 전원이 완전히 끊겼다 들어오는 조건은 소프트웨어 재부팅과 다릅니다. 실제 포트의 전원 유지 여부와 반복 냉부팅은 아직 검증하지 않았습니다.
+- 현재 확인한 문제는 **소프트 재부팅 후 USB 관리 콘솔의 불안정**입니다. 이를 차량 인터넷 불통이나 차량 정상 동작으로 확대 해석하지 않습니다.
+- 다음 차량 검증의 우선순위는 완전 전원 재연결 → Wi-Fi AP/DHCP/관리 접속 → 승인된 소량 데이터로 LTE·실제 클라이언트 통신 확인입니다. 콘솔 문제만을 이유로 장시간 반복 시험이나 추측성 커널 재빌드를 계속하지 않습니다.
+- 시험 기기는 요금 방지를 위해 셀룰러 자동 연결을 꺼둔 상태입니다. 그대로 꽂아 LTE가 자동 연결되지 않는 것은 현재의 의도된 설정입니다. **실험용 프리릴리즈 유지; 정식 안정판·차량 배치 준비 완료가 아닙니다.**
 
 ## Earlier experiment
 

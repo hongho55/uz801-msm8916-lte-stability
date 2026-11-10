@@ -2,6 +2,8 @@
 
 **Channel: candidate / prerelease. Not stable. One device, one short trial.**
 
+> **Historical image-qualification snapshot:** the findings below describe the original published f00a436 image and initial restart attempt. Later script-only overlay tests confirmed Wi-Fi management during failures and narrower USB recovery, but did not fix warm-reboot console reliability. See the [latest USB-console / vehicle-use follow-up](uz801-usb-console-vehicle-followup-2026-11-10.md). The full dbe882c image was not installed; the old release assets and measurements are unchanged.
+
 Target: `yiming,uz801-v3`, modem `HIMI_U01_MODEM_V2.0`, 7,634,944-sector eMMC only.
 
 ## What was installed

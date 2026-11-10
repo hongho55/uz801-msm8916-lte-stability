@@ -10,7 +10,7 @@ The original [experimental release](https://github.com/hongho55/uz801-msm8916-lt
 
 ## USB-console source follow-up
 
-The recipe now targets source `dbe882c`: ordinary gadget teardown preserves the persistent console inittab entry. The redirected real setup/teardown regression reproduced the loss on f00a436 and passes with this change, including repeated cycles and explicit shell opt-out/enable under Linux sh and candidate BusyBox ash. The collector additionally compares the packaged USB-gadget script against source (five critical members total). Hardware restart verification is still pending. The published f00a436 prerelease remains unchanged and does not include this fix. USB Ethernet investigation is deferred.
+The recipe now targets source `dbe882c`: ordinary gadget teardown preserves the persistent console inittab entry. The redirected real setup/teardown regression reproduced the loss on f00a436 and passes with this change, including repeated cycles and explicit shell opt-out/enable under Linux sh and candidate BusyBox ash. The collector additionally compares the packaged USB-gadget script against source (five critical members total). Script-only overlay tests on the f00a436 base still reproduced warm-reboot console failures; Wi-Fi management remained alive and one ACM data-interface reset could recover output. The complete dbe882c image was not installed or hardware-qualified. The published f00a436 prerelease remains unchanged and does not include this fix. See the [USB-console / vehicle-use follow-up](../../docs/uz801-usb-console-vehicle-followup-2026-11-10.md); no stable promotion or periodic USB reset is included. USB Ethernet investigation is deferred.
 
 ## Prerequisites
 
@@ -62,7 +62,7 @@ The synthetic response suite covers 42 cases. Hardware preflight found a valid13
 
 ## Hardware status of the current candidate
 
-See [partial qualification](../../docs/uz801-candidate-f00a436-qualification-2026-11-10.md): 29/29 pings over ~28 minutes on one device, installed from this recipe. Still a candidate, not stable.
+See [partial qualification of the earlier f00a436 image](../../docs/uz801-candidate-f00a436-qualification-2026-11-10.md): 29/29 pings over ~28 minutes on one device. The recipe now targets dbe882c; those earlier measurements do not qualify the full dbe882c image. Still a candidate, not stable.
 
 ## Candidate output
 
