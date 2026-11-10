@@ -56,6 +56,10 @@ The guarded read must succeed as a process and match the bundled utility's compl
 
 The synthetic response suite covers 42 cases. Hardware preflight found a valid136-byte read record for the exact HiMI_OK+121zero payload; that one captured value is accepted read-only. All-zero write eligibility remains size137 only. The tool reports read(2) record bytes, not normalized NV payload length; the136/137 difference has not been attributed to CRC/escaping. The prior parser was observed attempting a write on a one-row all-zero fixture; the hardened parser rejects that case. These are **fixture tests**, not real-device NV experiments. Both ordinary Linux tools and the candidate rootfs's BusyBox ash/awk were exercised. The standalone guard harness requires Linux `flock`; use the builder rather than assuming an unmodified macOS host has it. Its redirected device fixture does not test the real character-device gate or long-running retry timing. A failed lock skips that DIAG cycle and is retried later; fail-closed does not mean the daemon exits. The parser is deliberately coupled to the bundled utility; a changed format must be reviewed rather than guessed.
 
+## Hardware status of the current candidate
+
+See [partial qualification](../../docs/uz801-candidate-f00a436-qualification-2026-11-10.md): 29/29 pings over ~28 minutes on one device, installed from this recipe. Still a candidate, not stable.
+
 ## Candidate output
 
 The normal `diag_nv` wrapper now acquires the same real flock and reuses the guard's inherited descriptor, keeping the read/check/write transaction exclusive without deadlocking or unlocking its parent. Five Linux lock tests cover standalone use, competing callers, inherited-descriptor lifetime, failed locking and help-only behavior; the tests were also run with candidate BusyBox ash. Direct invocation of the underlying binary or another raw DIAG client can bypass this convention and **must** honor the same lock; this is not a modem-side atomic compare-and-swap.

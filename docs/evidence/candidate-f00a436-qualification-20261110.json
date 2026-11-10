@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "channel": "candidate",
+  "source_commit": "f00a436cac1e1294b7a4015db0a1e551b6a28b98",
+  "board": "yiming,uz801-v3",
+  "modem": "HIMI_U01_MODEM_V2.0",
+  "installed": {
+    "scope": "boot/rootfs prefixes + rootfs_data first 2 MiB; GPT/modem/NV/bootloader not written",
+    "readback_verified": true,
+    "boot_sha256": "6b29dcbbe93e0e252909814f4aa2bbaa01cb5418cb97593d23ab00b7a7d7c43e (padded readback)",
+    "rootfs_sha256_padded_readback": "3a9c3c2ad210cb15bfa8f404b3a5dbf0df9191780f3c3f7779658043792b6512"
+  },
+  "nv2500": {
+    "preinstall_payload_sha256": "d1df208ef25f174a1f4e9b8a407a5a80f67645435a37462bd0948771fe050c64",
+    "postboot_payload_sha256": "d1df208ef25f174a1f4e9b8a407a5a80f67645435a37462bd0948771fe050c64",
+    "content": "HiMI_OK + 121 zero bytes",
+    "observed_read_record_bytes": 136,
+    "guard_log_this_boot": "item 2500 was cleared; wrote HiMI_OK",
+    "note": "post-boot read matches pre-install; the zero state before the guard write was not captured independently"
+  },
+  "lowdata_trial": {
+    "planned_samples": 41,
+    "collected_samples": 29,
+    "ping_pass": 29,
+    "ping_fail": 0,
+    "stopped": "manually by user request at 1680s",
+    "device_uptime_first_last_s": [
+      423.43,
+      2103.8
+    ],
+    "device_uptime_monotonic": true,
+    "selected_fatal_matches_in_samples": 0,
+    "access_technology_at_check": "lte (first attach briefly umts)",
+    "traffic": "ICMP echo to 1.1.1.1 only; other wwan0 output/forward dropped; modem disabled after"
+  },
+  "not_tested": [
+    "repeated cold boots",
+    "handset DHCP/DNS/web path",
+    "run past the 39m54s prior observation",
+    "overnight soak",
+    "independent A/B without the guard on this image"
+  ]
+}
