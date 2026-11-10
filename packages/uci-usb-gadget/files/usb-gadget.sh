@@ -452,9 +452,10 @@ teardown_gadget() {
     cd /sys/kernel/config/usb_gadget
     rmdir "$CFG_GADGET_NAME" 2>/dev/null || true
     
-    # Clean shell from inittab
-    sed -i '/ttyGS0/d' /etc/inittab
-    kill -HUP 1 2>/dev/null || true
+    # Preserve persistent console policy across stop/shutdown. procd reads
+    # inittab before sysinit and does not reload it on SIGHUP; deleting the
+    # entry here loses the console on the next boot. setup_acm owns explicit
+    # shell enable/disable policy; ordinary gadget teardown must not erase it.
     
     log "Teardown complete"
     log "USB port available for host mode"

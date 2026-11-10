@@ -32,4 +32,54 @@ for board in ['yiming,uz801-v3', 'jz02,other']:
 gadget = (r / 'packages/uci-usb-gadget/files/usb-gadget.sh').read_text()
 assert 'echo "ttyGS0::respawnlate:/sbin/askfirst /usr/libexec/login.sh"' in gadget
 assert 'echo "ttyGS0::askfirst:/usr/libexec/login.sh"' not in gadget
-print('PASS: late-console declaration/persistence, firstboot ordering, shell syntax, UZ801 cellular-off/ECM settings, non-UZ801 guard')
+# Execute the shipped setup/teardown functions in a redirected filesystem.
+# PID1 signals, UCI and network reload are stubbed; no device is accessed.
+import tempfile, shlex, re
+
+def function(name):
+    match = re.search(r'^' + name + r'\(\) \{\n.*?^\}', gadget, re.M | re.S)
+    assert match, name
+    return match.group(0)
+
+with tempfile.TemporaryDirectory(prefix='usb-console-lifecycle-') as tmp:
+    root = Path(tmp)
+    configfs = root / 'configfs'
+    configfs.mkdir()
+    tab = root / 'inittab'
+    tab.write_text(init)
+    trace = root / 'trace'
+    redirected = (function('setup_acm') + '\n' + function('teardown_gadget'))
+    redirected = redirected.replace('/etc/inittab', shlex.quote(str(tab)))
+    redirected = redirected.replace('/sys/kernel/config/usb_gadget', shlex.quote(str(configfs)))
+    redirected = redirected.replace('/etc/init.d/network reload', 'network_reload')
+    harness = '''
+load_config() { :; }
+log() { :; }
+uci() { printf 'uci %s\\n' "$*" >> "$TRACE"; }
+network_reload() { printf 'reload\\n' >> "$TRACE"; }
+kill() { printf 'signal %s\\n' "$*" >> "$TRACE"; }
+prepare() {
+    mkdir -p "$CFG_GADGET_PATH/functions" "$CFG_CONFIG_PATH" "$CFG_GADGET_PATH/strings/0x409"
+}
+''' + redirected + '\n'
+    env = {**os.environ, 'CFG_GADGET_PATH': str(configfs / 'g1'),
+           'CFG_GADGET_NAME': 'g1', 'CFG_CONFIG_PATH': str(configfs / 'g1/configs/c.1'),
+           'CFG_ACM_SHELL': '1', 'TRACE': str(trace)}
+    def exercise(commands):
+        subprocess.run(shlex.split(os.environ.get('USB_TEST_SHELL', 'sh')), input=harness + commands, env=env,
+                       text=True, capture_output=True, check=True)
+    # A subsequent boot parses this persistent file BEFORE gadget startup.
+    exercise('prepare; setup_acm; teardown_gadget\n')
+    assert tab.read_text() == init, 'shutdown erased the next-boot console declaration'
+    for _ in range(3):
+        exercise('prepare; setup_acm; teardown_gadget\n')
+        assert tab.read_text() == init, 'repeated lifecycle changed persistent console policy'
+    exercise('CFG_GADGET_PATH="$CFG_GADGET_PATH-absent"; teardown_gadget\n')
+    assert tab.read_text() == init
+    assert 'reload' in trace.read_text(), 'network teardown was not exercised'
+    # Explicit shell=0 remains the separate opt-out policy, not ordinary stop.
+    exercise('prepare; CFG_ACM_SHELL=0; setup_acm; teardown_gadget\n')
+    assert 'ttyGS0' not in tab.read_text()
+    exercise('prepare; CFG_ACM_SHELL=1; setup_acm; setup_acm; teardown_gadget\n')
+    assert tab.read_text() == init, 'enable/repeated setup duplicated or lost console entry'
+print('PASS: firstboot/board checks + real redirected USB lifecycle preserves next-boot console, repeated stop/start, explicit shell opt-out/enable')
