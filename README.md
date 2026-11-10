@@ -4,7 +4,27 @@ Reproducible diagnostics and recovery notes for periodic Qualcomm MPSS/ML1 failu
 
 > **Status (2026-11-10):** an experimental guarded HiMI_OK/NV2500 image crossed the earlier ~15-minute fatal window on one UZ801. LTE connection uptime reached **39 min 54 s**, with 39 successful minute-spaced pings after one initial failed sample. Data was disabled and detachment verified after the trial. This is **not** a universal or long-term stability claim.
 
-## Latest experiment
+## Current candidate — f00a436 (not stable)
+
+- [Download candidate firmware, source, checksums and qualification report](https://github.com/hongho55/uz801-msm8916-lte-stability/releases/tag/uz801-candidate-f00a436-20261110)
+- [Partial hardware qualification / known USB-console issue](docs/uz801-candidate-f00a436-qualification-2026-11-10.md)
+- [Build recipe and review PR](https://github.com/hongho55/uz801-msm8916-lte-stability/pull/3)
+- Installed/readback-verified on one `yiming,uz801-v3` / `HIMI_U01_MODEM_V2.0`; 29/29 minute-spaced pings over about 28 minutes. This is separate from the older 39m54s experiment below.
+- **Follow-up source fix:** [`dbe882c`](https://github.com/hongho55/uz801-msm8916-lte-stability/commit/dbe882c425c9efb74c2716580a648f27520c8aa8) preserves the console entry during teardown; Linux sh/BusyBox lifecycle regressions pass. Only that script was tested in the installed f00a436 overlay, **not the full dbe882c image**. It did not eliminate intermittent warm-reboot console failures. The published f00a436 binary is unchanged and does not contain this fix.
+- **Latest hardware finding:** during silent-console failures, Wi-Fi DHCP and HTTP/ubus management worked, the console shell remained alive, and a USB-sent command executed on-device despite no host readback. ACM-only mode also failed. A single ACM data-interface reset restored the console without rebooting; no periodic workaround was installed.
+- **Unresolved transport failure:** controller observations found outstanding console TX requests while the TX endpoint was inactive. This localizes the symptom, not its root cause; no kernel fix or stable qualification is claimed. See the [USB-console / vehicle-use follow-up](docs/uz801-usb-console-vehicle-followup-2026-11-10.md) for bounded trials, source/image distinctions and recovery limits.
+- No stable promotion or automatic installation. Boot may write NV2500 on the opted-in board. Default/open management access is unsuitable for unattended deployment. The 40-minute and overnight tests were explicitly excluded; repeated cold boots and handset network tests remain unverified.
+
+### 차량 사용 기준 / Vehicle-use status
+
+- 차량 USB 전원이 완전히 끊겼다 들어오는 조건은 소프트웨어 재부팅과 다릅니다. 실제 포트의 전원 유지 여부와 반복 냉부팅은 아직 검증하지 않았습니다.
+- 현재 확인한 문제는 **소프트 재부팅 후 USB 관리 콘솔의 불안정**입니다. 이를 차량 인터넷 불통이나 차량 정상 동작으로 확대 해석하지 않습니다.
+- 다음 차량 검증의 우선순위는 완전 전원 재연결 → Wi-Fi AP/DHCP/관리 접속 → 승인된 소량 데이터로 LTE·실제 클라이언트 통신 확인입니다. 콘솔 문제만을 이유로 장시간 반복 시험이나 추측성 커널 재빌드를 계속하지 않습니다.
+- 시험 기기는 요금 방지를 위해 셀룰러 자동 연결을 꺼둔 상태입니다. 그대로 꽂아 LTE가 자동 연결되지 않는 것은 현재의 의도된 설정입니다. **실험용 프리릴리즈 유지; 정식 안정판·차량 배치 준비 완료가 아닙니다.**
+
+## Earlier experiment
+
+- [Repeatable downstream build recipe / 새 upstream 버전 적용·빌드](firmware/uz801/README.md) — pinned source, reviewed patches, fail-closed drift checks, regressions and candidate packaging; never automatic flashing or stable promotion.
 
 - [Final report, risks, build identity and sanitized evidence](docs/uz801-himi2500-experiment-2026-11-10.md)
 - [Experimental firmware release](https://github.com/hongho55/uz801-msm8916-lte-stability/releases/tag/uz801-himi2500-experiment-20261110)

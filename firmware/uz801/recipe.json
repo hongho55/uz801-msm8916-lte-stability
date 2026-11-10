@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "upstream_url": "https://github.com/akbar-npj/msm8916-openwrt.git",
+  "tested_upstream_commit": "487dfc0a72236460f5cb5cd22ea2d587bfc35b45",
+  "reference_downstream_commit": "dbe882c425c9efb74c2716580a648f27520c8aa8",
+  "patch": "downstream.patch",
+  "patch_sha256": "1eba8a112a0214311beca178c9a2afae8856590b68ebd8aa291d6e0624469a40",
+  "board": "yiming,uz801-v3",
+  "modem_revision_scope": "HIMI_U01_MODEM_V2.0 (one tested unit; candidate still needs hardware qualification)",
+  "required_files": {
+    "msm89xx/base-files/usr/sbin/himi-ok-guard": "f1cb0fbda43a61dd584681ad475735ed57d9c8c9d0c196e77fa1ed2415842461",
+    "msm89xx/base-files/usr/sbin/diag_nv": "4184dd57d0d10486f7fe348bf15509cc907383ac325b728acc4bb2edb2a16495",
+    "msm89xx/base-files/usr/libexec/diag_nv.bin": "a0f4a58e983dfc0ac04514153ccce09ca096b9a712e9229b1d0118d8baf1b713",
+    "msm89xx/base-files/etc/init.d/himi-ok": "9e7f3fd845f38a24461f4a5eb5f86feca5d35c6f63b12a0983cbbcaf422d2ee0",
+    "msm89xx/base-files/lib/himi-ok.sh": "a6509902dc56e3f0d61e64317674ab3022a3e17ab275e9b41a78a489452cb249",
+    "msm89xx/base-files/etc/uci-defaults/99-uz801-private-management": "5a43ee17f2803c7f5b2a55e1025c4f89f8739251d9cb576820147119df15896b",
+    "msm89xx/base-files/etc/inittab": "bc6548a2d54a2e9f7003f78b40a8fcb8358d7a6d3426a0dabf7103fe932b8fa9",
+    "packages/uci-usb-gadget/files/usb-gadget.sh": "f0005fee0c1a3637e85604ff6431589f336154e6b654be3522a70f2f3b5ad0fa",
+    "tests/himi-ok-guard/run.sh": "dda95ad4f75989a9b304616df6ee31147b441516a93ff88074150a5465ba6ab3",
+    "tests/himi-ok-guard/test-responses.py": "674d062664931fec4b56970055db20d7c0f4a230ad85dc8fd52586813b6f6c1a",
+    "tests/private-usb-management/run.py": "a057896e6dea1ca93661a873743f6ab3075747a11a54ba2bcc86b6e48299e3a5",
+    "build.sh": "a4c259dfaf6fe7564421daaf9a4b0eed235f3c7cfada7d5b64851e8321f08b45",
+    "devenv/docker-compose.yml": "b40a18a546cc815acb6ff5f8c41f33d0a06c234c7c0958bbd4dc5ecf65de5a54",
+    "devenv/Dockerfile": "63a46e3c1efb25152bc4126b4b0e727e2e0619f64f8550c26db9d368a8d921a3",
+    "devenv/dependencies.sh": "592b815f6992b70a2a70e99e01f7239ceacff34e689ceaa4fd66557c8a6ca2e9",
+    "tests/himi-ok-guard/test-diag-lock.py": "8ee7bd8b71214e9fa9a8f8267530f9557f4ea90c747e0cfd6edbcc80298f92d7"
+  }
+}
