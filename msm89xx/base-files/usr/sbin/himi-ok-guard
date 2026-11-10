@@ -83,13 +83,16 @@ case "$INTERVAL" in ''|*[!0-9]*) INTERVAL=20 ;; esac
 [ "$INTERVAL" -ge 5 ] || INTERVAL=5
 
 # Parse only the complete output contract emitted by the bundled diag_nv.
-# Require the expected item, frame length/status, 8 ordered rows and 128 bytes.
+# Require the expected item/status, 8 ordered rows and 128 bytes. resp is the
+# rpmsg read-record size, not payload length: only observed sizes are allowed.
+# 136 is read-only and valid only for the exact captured HiMI_OK+121zero value.
 # A transport warning, truncated dump or changed utility format is read-only.
 payload_hex() {
 	printf '%s\n' "$1" | awk '
 		function reject() { bad = 1; exit 1 }
 		NR == 1 {
-			if ($0 !~ /^nvread 2500 [(]0x9c4[)]: resp=137 bytes[ 	]+status=0x0000$/) reject()
+			if ($0 !~ /^nvread 2500 [(]0x9c4[)]: resp=(136|137) bytes[ 	]+status=0x0000$/) reject()
+			record_bytes = ($0 ~ /resp=136 bytes/) ? 136 : 137
 			next
 		}
 		{
@@ -114,6 +117,11 @@ payload_hex() {
 		}
 		END {
 			if (bad || NR != 9 || length(hex) != 256) exit 1
+			if (record_bytes == 136) {
+				token = "48694d495f4f4b"
+				for (i = 0; i < 242; i++) token = token "0"
+				if (hex != token) exit 1
+			}
 			print hex
 		}'
 }

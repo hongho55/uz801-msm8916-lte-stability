@@ -28,6 +28,9 @@ lines = zero.splitlines()
 cases = [
     ('complete zero payload', zero, 0, True),
     ('complete existing token', reply(TOKEN), 0, False),
+    ('captured token length136', reply(TOKEN, HEADER.replace('137', '136')), 0, False),
+    ('length136 foreign tail', reply(TOKEN[:-1] + b'X', HEADER.replace('137', '136')), 0, False),
+    ('length135 token rejected', reply(TOKEN, HEADER.replace('137', '135')), 0, False),
     ('foreign first byte', reply(b'X' + bytes(127)), 0, False),
     ('foreign final byte', reply(bytes(127) + b'X'), 0, False),
     ('empty output', '', 0, False),
@@ -113,6 +116,12 @@ sys.exit(64)
         result = subprocess.run(shell + [str(p / 'guard')], env=env, capture_output=True, text=True, timeout=5)
         calls = (p / 'writes').read_text().splitlines() if (p / 'writes').exists() else []
         assert result.returncode == 0, (name, result.returncode, result.stderr)
+        if name == 'captured token length136':
+            # Prove valid parsing, not merely an indistinguishable no-write rejection.
+            parser = source[source.index('payload_hex() {'):source.index('\n# Input has already')]
+            (p / 'parse').write_text(parser + '\npayload_hex ' + shlex.quote(output.rstrip('\n')) + '\n')
+            parsed = subprocess.run(shell + [str(p / 'parse')], env=env, capture_output=True, text=True, timeout=5)
+            assert parsed.returncode == 0 and parsed.stdout.strip() == TOKEN.hex(), (name, parsed.stderr)
         assert len(calls) == int(expect_write), (name, 'unexpected write count', calls)
         if expect_write:
             logged_success = 'wrote HiMI_OK' in (p / 'log').read_text()
